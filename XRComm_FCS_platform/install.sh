@@ -9,6 +9,12 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+if [ -f "/etc/systemd/system/xrcomm-server.service" ]; then
+  echo "Error: A previous version of XRComm FCS Platform is already installed."
+  echo "Please run the uninstall script first (e.g., sudo ./uninstall.sh)."
+  exit 1
+fi
+
 echo "========================================"
 echo "  XRComm FCS Platform Setup Wizard      "
 echo "========================================"
