@@ -79,3 +79,9 @@ cd XRComm_FCS_platform
 chmod +x uninstall.sh
 sudo ./uninstall.sh
 ```
+
+## Tarring
+
+```bash
+tar --exclude='.git' -czvf XRComm_FCS_platform.tar.gz XRComm_FCS_platform/
+```

@@ -1,0 +1,1 @@
+/usr/bin/cc  -O3 -mavx2 -pthread -Wall CMakeFiles/hello_world.dir/hello_world.c.o -o "/home/abrar/Siliconova/xrcomm_project/packaging/Tar Packaging/wideband_8T8R_packaging/XRComm_FCS_platform/XRComm_8T8R_hello_world/bin/hello_world"  -lm -lrt -lpthread

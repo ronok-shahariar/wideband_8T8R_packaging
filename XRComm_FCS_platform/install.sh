@@ -13,25 +13,9 @@ echo "========================================"
 echo "  XRComm FCS Platform Setup Wizard      "
 echo "========================================"
 
-# Dependency check function
-check_dependency() {
-  if ! dpkg -l | grep -qw "$1"; then
-    echo "WARNING: Dependency '$1' is not installed."
-    MISSING_DEPS=1
-  fi
-}
-
-echo "Checking system dependencies..."
-MISSING_DEPS=0
-check_dependency "python3-grpcio"
-check_dependency "python3-protobuf"
-check_dependency "python3-grpc-tools"
-
-if [ $MISSING_DEPS -eq 1 ]; then
-  echo "Attempting to install missing dependencies..."
-  apt-get update
-  apt-get install -y python3-grpcio python3-protobuf python3-grpc-tools || echo "Failed to automatically install dependencies. Proceeding anyway..."
-fi
+echo "Installing GRPC dependencies..."
+apt-get update
+apt-get install -y python3-grpcio python3-protobuf python3-grpc-tools || echo "Warning: Dependency installation failed. Continuing..."
 
 # License Agreement
 echo -e "\n--- LICENSE AGREEMENT ---"
@@ -81,6 +65,8 @@ After=network.target
 
 [Service]
 Type=simple
+WorkingDirectory=$TARGET_DIR/XRComm_platform_drivers/bin
+Environment=XRCOMM_READ_CONFIG=$BASE_DIR/XRComm_NVMe_loader/config/read_config.ini
 ExecStart=$SERVER_BIN
 Restart=on-failure
 
@@ -95,6 +81,8 @@ After=xrcomm-server.service
 
 [Service]
 Type=simple
+WorkingDirectory=$TARGET_DIR/XRComm_platform_gRPC/bin
+Environment=XRCOMM_READ_CONFIG=$BASE_DIR/XRComm_NVMe_loader/config/read_config.ini
 ExecStart=$GRPC_BIN
 Restart=on-failure
 

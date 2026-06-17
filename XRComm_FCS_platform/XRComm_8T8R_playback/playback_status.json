@@ -1,0 +1,15 @@
+{
+  "playback_running": false,
+  "running_time_s": 407.864923,
+  "loops_completed": 741569,
+  "loop_count_target": 0,
+  "trigger_state": "IDLE",
+  "trigger_burst_size": 1,
+  "total_triggered_pkts": 0,
+  "tuning_rate_hz": 400,
+  "tuning_offset": -3,
+  "read_input_gbps_instant": 0.0000,
+  "read_input_gbps_average": 0.0000,
+  "wire_tx_gbps_instant": 0.0000,
+  "wire_tx_gbps_average": 0.0000
+}

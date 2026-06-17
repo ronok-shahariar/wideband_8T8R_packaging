@@ -36,6 +36,9 @@ echo "Removing include files mappings..."
 rm -rf /usr/include/xrcomm-wideband
 rm -rf /usr/include/xrcomm-8T8R
 
+echo "Removing GRPC dependencies..."
+apt-get remove -y python3-grpcio python3-protobuf python3-grpc-tools || true
+
 echo -e "\n========================================"
 echo " Uninstallation Complete."
 echo "========================================"

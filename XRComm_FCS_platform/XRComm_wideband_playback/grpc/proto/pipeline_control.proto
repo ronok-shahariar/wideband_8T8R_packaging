@@ -1,0 +1,113 @@
+// ============================================================================
+//  pipeline_control.proto  —  XRComm FCS wideband platform
+//
+//  This file contains the PLAYBACK control surface (Guide Sections 8.3 & 8.4):
+//    - one request/response message PER config.ini field (no bulk setter)
+//    - 16 per-field Get/Set RPCs + GetPlaybackConfig snapshot
+//    - StartPlayback / StopPlayback
+//    - GetPlaybackDiagnostics / WatchPlaybackDiagnostics (13 Table-D fields)
+//
+//  The platform mode/telemetry RPCs (Sections 8.1 / 8.2 — GetFlags, SetDspMode,
+//  SetLogging, SetIpMode, GetStats, ListSecondaryIPs, WatchStatus, Shutdown,
+//  PlatformTelemetry) are added to the SAME `service PipelineControl`. They are
+//  marked below where they merge in but are out of scope of this playback drop.
+//
+//  Generated stubs (*.pb.*, *.grpc.pb.*) are NOT shipped — only this .proto.
+// ============================================================================
+
+syntax = "proto3";
+
+package xrcomm;
+
+// ---- shared ----------------------------------------------------------------
+message Empty {}
+
+message StatusReply {
+  bool   ok      = 1;
+  string message = 2;
+}
+
+// ---- ONE request/response message PER FIELD (Section 8.3) ------------------
+message CoreListValue         { string value = 1; }  // e.g. "7,8,9"
+message SourceModeValue       { uint32 value = 1; }  // 0 = NVMe (SPDK), 1 = file
+message BinaryFilenameValue   { string value = 1; }  // inside inputs/playback_waveforms/
+message SampleRateValue       { uint64 value = 1; }  // Hz
+message TxPortIdValue         { uint32 value = 1; }
+message DestMacValue          { string value = 1; }  // XX:XX:XX:XX:XX:XX
+message LoopCountValue        { uint32 value = 1; }  // 0 = infinite
+message TriggerBurstSizeValue { uint32 value = 1; }
+
+// ---- read-only snapshot: returned by GetPlaybackConfig AND by every setter --
+message PlaybackConfig {
+  string core_list             = 1;
+  uint32 source_mode           = 2;
+  string binary_filename       = 3;
+  uint64 target_sample_rate_hz = 4;
+  uint32 tx_port_id            = 5;
+  string dest_mac              = 6;
+  uint32 loop_count            = 7;
+  uint32 trigger_burst_size    = 8;
+}
+
+// ---- steady-state diagnostics (Section 8.4, Table D) -----------------------
+message PlaybackDiagnostics {
+  bool   playback_running          = 1;
+  double running_time_s            = 2;   // Running Time : 2.01 s
+  uint64 loops_completed           = 3;   // Loops : 242240 / 0  (first number)
+  uint32 loop_count_target         = 4;   // Loops : 242240 / 0  (second number, 0 = infinite)
+  string trigger_state             = 5;   // "IDLE" or "ACTIVE"
+  uint32 trigger_burst_size        = 6;   // Burst size : 1
+  uint64 total_triggered_pkts      = 7;   // Total triggered pkts : 0
+  uint32 tuning_rate_hz            = 8;   // [TUNING] Rate: 900 Hz
+  int32  tuning_offset             = 9;   // Offset: 5 cycles/interval
+  double read_input_gbps_instant   = 10;  // Read Input, INSTANT (10 ms)
+  double read_input_gbps_average   = 11;  // Read Input, AVERAGE (1 s)
+  double wire_tx_gbps_instant      = 12;  // Wire Transmit, INSTANT (10 ms)
+  double wire_tx_gbps_average      = 13;  // Wire Transmit, AVERAGE (1 s)
+}
+
+// ============================================================================
+service PipelineControl {
+  // --- Platform mode / stats RPCs (Sections 8.1 / 8.2) merge in here ---
+  // rpc GetFlags          (Empty)       returns (PipelineFlags);
+  // rpc SetDspMode        (BoolRequest) returns (PipelineFlags);
+  // rpc SetLogging        (BoolRequest) returns (PipelineFlags);
+  // rpc SetIpMode         (BoolRequest) returns (PipelineFlags);
+  // rpc GetStats          (Empty)       returns (CombinedStats);
+  // rpc ListSecondaryIPs  (Empty)       returns (SecondaryIPList);
+  // rpc WatchStatus       (Empty)       returns (stream PipelineStatus);
+  // rpc Shutdown          (Empty)       returns (StatusReply);
+
+  // --- Playback configuration: snapshot + 16 per-field RPCs (Section 8.3) ---
+  rpc GetPlaybackConfig   (Empty)                 returns (PlaybackConfig);
+
+  rpc GetCoreList         (Empty)                 returns (CoreListValue);
+  rpc SetCoreList         (CoreListValue)         returns (PlaybackConfig);
+
+  rpc GetSourceMode       (Empty)                 returns (SourceModeValue);
+  rpc SetSourceMode       (SourceModeValue)       returns (PlaybackConfig);
+
+  rpc GetBinaryFilename   (Empty)                 returns (BinaryFilenameValue);
+  rpc SetBinaryFilename   (BinaryFilenameValue)   returns (PlaybackConfig);
+
+  rpc GetSampleRate       (Empty)                 returns (SampleRateValue);
+  rpc SetSampleRate       (SampleRateValue)       returns (PlaybackConfig);
+
+  rpc GetTxPortId         (Empty)                 returns (TxPortIdValue);
+  rpc SetTxPortId         (TxPortIdValue)         returns (PlaybackConfig);
+
+  rpc GetDestMac          (Empty)                 returns (DestMacValue);
+  rpc SetDestMac          (DestMacValue)          returns (PlaybackConfig);
+
+  rpc GetLoopCount        (Empty)                 returns (LoopCountValue);
+  rpc SetLoopCount        (LoopCountValue)        returns (PlaybackConfig);
+
+  rpc GetTriggerBurstSize (Empty)                 returns (TriggerBurstSizeValue);
+  rpc SetTriggerBurstSize (TriggerBurstSizeValue) returns (PlaybackConfig);
+
+  // --- Playback start/stop + diagnostics (Section 8.4) ---
+  rpc StartPlayback            (Empty) returns (StatusReply);
+  rpc StopPlayback             (Empty) returns (StatusReply);
+  rpc GetPlaybackDiagnostics   (Empty) returns (PlaybackDiagnostics);
+  rpc WatchPlaybackDiagnostics (Empty) returns (stream PlaybackDiagnostics);
+}

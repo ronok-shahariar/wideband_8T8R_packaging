@@ -1,0 +1,131 @@
+// pipeline_control.proto  (v6 — 8T8R customer release)
+// XRComm Platform Driver — gRPC control and monitoring service.
+// Compiled with: protoc --grpc_out=. --cpp_out=. pipeline_control.proto
+
+syntax = "proto3";
+package xrcomm;
+option go_package = "xrcomm/pipeline_control";
+
+service PipelineControl {
+  // ── Mode flags ──────────────────────────────────────────────────────────
+  // Read current mode flags
+  rpc GetFlags          (Empty)       returns (PipelineFlags);
+
+  // Set individual flags — all modes are INDEPENDENT, no mutual exclusion
+  rpc SetDspMode        (BoolRequest) returns (PipelineFlags);   // FULL_PACKET_MODE
+  rpc SetLogging        (BoolRequest) returns (PipelineFlags);   // NVMe logging
+  rpc SetIpMode         (BoolRequest) returns (PipelineFlags);   // IQ_MODE
+
+  // ── Stats ────────────────────────────────────────────────────────────────
+  // Combined stats: pipeline counters + per-channel telemetry + per-IP dispatch
+  rpc GetStats          (Empty)       returns (CombinedStats);
+
+  // List all registered secondary IQ applications
+  rpc ListSecondaryIPs  (Empty)       returns (SecondaryIPList);
+
+  // ── Live streaming ───────────────────────────────────────────────────────
+  // 1 Hz streaming status (flags + stats + uptime)
+  rpc WatchStatus       (Empty)       returns (stream PipelineStatus);
+
+  // ── Control ──────────────────────────────────────────────────────────────
+  // Graceful pipeline shutdown
+  rpc Shutdown          (Empty)       returns (StatusReply);
+}
+
+// ── Scalar primitives ──────────────────────────────────────────────────────
+message Empty {}
+message BoolRequest { bool value = 1; }
+message StatusReply { bool ok = 1; string error = 2; }
+
+// ── Mode flags ─────────────────────────────────────────────────────────────
+message PipelineFlags {
+  bool enable_dsp_mode = 1;   // FULL_PACKET_MODE — independent
+  bool enable_logging  = 2;   // NVMe raw IQ capture — independent
+  bool enable_ip_mode  = 3;   // IQ_MODE per-channel dispatch — independent
+  bool execute_rt_loop = 4;   // master pipeline keep-alive
+}
+
+// ── Pipeline primary counters ──────────────────────────────────────────────
+message PipelineCounters {
+  uint64 packets_received  = 1;
+  uint64 packets_processed = 2;
+  uint64 blocks_processed  = 3;
+  uint64 blocks_logged     = 4;
+  uint64 drops_no_mem      = 5;
+  uint64 drops_ring_full   = 6;
+}
+
+// ── Per-channel telemetry (8T8R) ───────────────────────────────────────────
+// One entry per channel — all channels, every time.
+// Reported in GetStats and in every WatchStatus streamed update.
+message ChannelTelemetry {
+  uint32 hsp_port                    = 1;  // HSP port number in use (0 or 1)
+  uint32 channel                     = 2;  // Channel number (0..7)
+  uint64 samples_received            = 3;  // IQ samples received on THIS channel
+  uint64 samples_logged              = 4;  // Samples logged on THIS channel (0 if logging off)
+  uint64 samples_processed_secondary = 5;  // Samples consumed by secondary IQ applications
+  uint64 packets_dropped             = 6;  // Dropped on THIS channel: RX overflow + ring-full
+}
+
+// ── Per-IP dispatch stats (primary-side + secondary self-reported) ─────────
+message SpectrumIPStats {
+  uint32 slot_id           = 1;
+  string name              = 2;
+  uint32 hsp_port          = 3;   // registered port
+  uint32 channel           = 4;   // registered channel (255 = all)
+  uint64 batches_pushed    = 5;   // primary dispatch counter
+  uint64 batches_dropped   = 6;   // ring full — application polling too slowly
+  uint64 samples_total     = 7;
+  uint64 batches_received  = 8;   // self-reported by secondary
+  uint64 batches_processed = 9;
+  float  last_power_dbfs   = 10;
+  float  mean_power_dbfs   = 11;
+}
+
+// ── DSP secondary self-reported metrics ────────────────────────────────────
+message DspStats {
+  bool   dsp_ready        = 1;
+  uint64 epochs_processed = 2;
+  uint64 epochs_dropped   = 3;
+  uint64 peaks_detected   = 4;
+  uint64 good_frames      = 5;
+  uint64 bad_frames       = 6;
+  float  last_cfo_hz      = 7;
+  float  last_rssi        = 8;
+  uint32 a2pj_write_index = 9;
+  uint32 cfo_write_index  = 10;
+  uint64 trigger_count    = 11;
+}
+
+// ── Combined stats ──────────────────────────────────────────────────────────
+message CombinedStats {
+  PipelineCounters            pipeline          = 1;
+  DspStats                    dsp               = 2;
+  repeated SpectrumIPStats    spectrum          = 3;
+  repeated ChannelTelemetry   channel_telemetry = 4;  // one entry per channel (all 8)
+}
+
+// ── Secondary IP registry entry ────────────────────────────────────────────
+message SecondaryIPEntry {
+  uint32 slot_id      = 1;
+  string name         = 2;
+  int32  pid          = 3;
+  string rx_mode      = 4;  // "FULL_PACKET_MODE", "IQ_MODE", or "LOG_BLOCK_MODE"
+  bool   ring_ready   = 5;
+  bool   active       = 6;
+  string process_type = 7;  // "dpdk_secondary" or "posix"
+  uint32 hsp_port     = 8;  // registered HSP port
+  uint32 channel      = 9;  // registered channel (255 = all channels)
+}
+
+message SecondaryIPList {
+  repeated SecondaryIPEntry entries = 1;
+}
+
+// ── Live streaming status ───────────────────────────────────────────────────
+message PipelineStatus {
+  PipelineFlags flags     = 1;
+  CombinedStats stats     = 2;
+  bool          running   = 3;
+  uint64        uptime_ms = 4;
+}
