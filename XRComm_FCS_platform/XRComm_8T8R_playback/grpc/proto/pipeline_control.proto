@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+// =============================================================================
+// XRComm FCS 8T8R — Playback control contract
+// Customer Package Preparation Guide, Sections 8.3 (playback config over gRPC)
+// and 8.4 (start/stop + steady-state diagnostics).
+//
+// SCOPE: this file is the PLAYBACK control surface only. The platform RPCs
+// (Section 8.1 GetFlags/SetDspMode/SetLogging/SetIpMode/GetStats/
+// ListSecondaryIPs/WatchStatus/Shutdown and Section 8.2 telemetry) belong to
+// the full pipeline_control.proto and are intentionally not included here.
+//
+// 8T8R ADAPTATION NOTE (vs the single-port v4.3 key list in Section 6.2):
+// the 8T8R config.ini has per-channel waveform keys (ch0..ch7_filename) and
+// per-port keys (port0/1_tx_port_id, port0/1_dest_mac). To keep the guide's
+// core design — "one value written per call, the other keys left byte-for-byte
+// untouched, no bulk setter" — the repeated fields are addressed by an index
+// parameter (channel / port) instead of generating 8 + 4 near-identical RPC
+// pairs. Each Set still writes exactly ONE key into inputs/config.ini.
+// =============================================================================
+
+package xrcomm.playback.v8t8r;
+
+message Empty {}
+
+message StatusReply {
+  bool   ok      = 1;
+  string message = 2;
+}
+
+// ---- ONE value message per scalar field ------------------------------------
+message CoreListValue         { string value = 1; }   // e.g. "6,7,8,9,10"
+message SourceModeValue       { uint32 value = 1; }   // 0 = NVMe, 1 = file
+message SampleRateValue       { uint64 value = 1; }   // Hz
+message LoopCountValue        { uint32 value = 1; }   // 0 = infinite
+message TriggerBurstSizeValue { uint32 value = 1; }   // >= 1 (placeholder in 8T8R)
+
+// ---- repeated fields: selector + value (one key written per Set) -----------
+message ChannelRef            { uint32 channel = 1; }                  // 0..7
+message ChannelFilenameValue  { uint32 channel = 1; string value = 2; }// "" = disabled
+message PortRef               { uint32 port = 1; }                     // 0..1
+message TxPortIdValue         { uint32 port = 1; uint32 value = 2; }
+message DestMacValue          { uint32 port = 1; string value = 2; }   // XX:XX:XX:XX:XX:XX
+
+// ---- read-only snapshot returned by GetPlaybackConfig and EVERY setter -----
+message PlaybackConfig {
+  string          core_list             = 1;
+  uint32          source_mode           = 2;
+  repeated string ch_filename           = 3;  // index 0..7 -> ch0..ch7 ("" = disabled)
+  uint64          target_sample_rate_hz = 4;
+  repeated uint32 tx_port_id            = 5;  // index 0..1 -> port0..port1
+  repeated string dest_mac              = 6;  // index 0..1 -> port0..port1
+  uint32          loop_count            = 7;
+  uint32          trigger_burst_size    = 8;
+}
+
+// ---- steady-state diagnostics (Section 8.4, Table D — 13 fields) -----------
+// read_input_* / wire_tx_* are the COMBINED both-port figures for 8T8R.
+// trigger_state is always "IDLE" and total_triggered_pkts is 0 in 8T8R
+// (runtime per-channel t<CH>,<offset> triggers do not use a burst state).
+message PlaybackDiagnostics {
+  bool   playback_running        = 1;
+  double running_time_s          = 2;
+  uint64 loops_completed         = 3;
+  uint32 loop_count_target       = 4;
+  string trigger_state           = 5;
+  uint32 trigger_burst_size      = 6;
+  uint64 total_triggered_pkts    = 7;
+  uint32 tuning_rate_hz          = 8;
+  int32  tuning_offset           = 9;
+  double read_input_gbps_instant = 10;
+  double read_input_gbps_average = 11;
+  double wire_tx_gbps_instant    = 12;
+  double wire_tx_gbps_average    = 13;
+}
+
+service PlaybackControl {
+  // whole-snapshot read
+  rpc GetPlaybackConfig (Empty) returns (PlaybackConfig);
+
+  // scalar fields: dedicated Get/Set, each Set writes ONLY its own key
+  rpc GetCoreList         (Empty)                returns (CoreListValue);
+  rpc SetCoreList         (CoreListValue)        returns (PlaybackConfig);
+  rpc GetSourceMode       (Empty)                returns (SourceModeValue);
+  rpc SetSourceMode       (SourceModeValue)      returns (PlaybackConfig);
+  rpc GetSampleRate       (Empty)                returns (SampleRateValue);
+  rpc SetSampleRate       (SampleRateValue)      returns (PlaybackConfig);
+  rpc GetLoopCount        (Empty)                returns (LoopCountValue);
+  rpc SetLoopCount        (LoopCountValue)       returns (PlaybackConfig);
+  rpc GetTriggerBurstSize (Empty)                returns (TriggerBurstSizeValue);
+  rpc SetTriggerBurstSize (TriggerBurstSizeValue)returns (PlaybackConfig);
+
+  // per-channel waveform (8T8R: channels 0..7) — writes only ch<n>_filename
+  rpc GetChannelFilename (ChannelRef)           returns (ChannelFilenameValue);
+  rpc SetChannelFilename (ChannelFilenameValue) returns (PlaybackConfig);
+
+  // per-port fields (ports 0..1) — writes only port<n>_tx_port_id / port<n>_dest_mac
+  rpc GetTxPortId (PortRef)      returns (TxPortIdValue);
+  rpc SetTxPortId (TxPortIdValue)returns (PlaybackConfig);
+  rpc GetDestMac  (PortRef)      returns (DestMacValue);
+  rpc SetDestMac  (DestMacValue) returns (PlaybackConfig);
+
+  // process control (gRPC error if already in the requested state)
+  rpc StartPlayback (Empty) returns (StatusReply);
+  rpc StopPlayback  (Empty) returns (StatusReply);
+
+  // steady-state diagnostics
+  rpc GetPlaybackDiagnostics   (Empty) returns (PlaybackDiagnostics);
+  rpc WatchPlaybackDiagnostics (Empty) returns (stream PlaybackDiagnostics);
+}
