@@ -1,3 +1,0 @@
-/home/abrar/Siliconova/xrcomm_project/packaging/Tar Packaging/wideband_8T8R_packaging/XRComm_FCS_platform/XRComm_8T8R_hello_world/build/CMakeFiles/hello_world.dir
-/home/abrar/Siliconova/xrcomm_project/packaging/Tar Packaging/wideband_8T8R_packaging/XRComm_FCS_platform/XRComm_8T8R_hello_world/build/CMakeFiles/edit_cache.dir
-/home/abrar/Siliconova/xrcomm_project/packaging/Tar Packaging/wideband_8T8R_packaging/XRComm_FCS_platform/XRComm_8T8R_hello_world/build/CMakeFiles/rebuild_cache.dir

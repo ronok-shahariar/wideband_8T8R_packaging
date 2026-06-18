@@ -35,17 +35,17 @@ fi
 
 # Select Platform
 echo -e "\nWhich platform would you like to install?"
-echo "1) Wideband Platform (XRComm_FCS_wideband_platform)"
-echo "2) 8T8R Platform (XRComm_FCS_8T8R_platform)"
+echo "1) Wideband Platform (wideband/)"
+echo "2) 8T8R Platform (8T8R/)"
 read -p "Enter choice [1-2]: " PLATFORM_CHOICE
 
-PLATFORM_DIR=""
+VARIANT_DIR=""
 INCLUDE_DEST=""
 if [ "$PLATFORM_CHOICE" == "1" ]; then
-  PLATFORM_DIR="XRComm_FCS_wideband_platform"
+  VARIANT_DIR="wideband"
   INCLUDE_DEST="/usr/include/xrcomm-wideband"
 elif [ "$PLATFORM_CHOICE" == "2" ]; then
-  PLATFORM_DIR="XRComm_FCS_8T8R_platform"
+  VARIANT_DIR="8T8R"
   INCLUDE_DEST="/usr/include/xrcomm-8T8R"
 else
   echo "Invalid choice. Aborting."
@@ -53,10 +53,17 @@ else
 fi
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TARGET_DIR="$BASE_DIR/$PLATFORM_DIR"
+VARIANT_ROOT="$BASE_DIR/$VARIANT_DIR"
+TARGET_DIR="$VARIANT_ROOT/platform"
+READ_CONFIG="$TARGET_DIR/config/read_config.ini"
 
 if [ ! -d "$TARGET_DIR" ]; then
   echo "Error: Source directory $TARGET_DIR not found!"
+  exit 1
+fi
+
+if [ ! -f "$READ_CONFIG" ]; then
+  echo "Error: Read-back configuration $READ_CONFIG not found!"
   exit 1
 fi
 
@@ -72,7 +79,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=$TARGET_DIR/XRComm_platform_drivers/bin
-Environment=XRCOMM_READ_CONFIG=$BASE_DIR/XRComm_NVMe_loader/config/read_config.ini
+Environment=XRCOMM_READ_CONFIG=$READ_CONFIG
 ExecStart=$SERVER_BIN
 Restart=on-failure
 
@@ -88,7 +95,7 @@ After=xrcomm-server.service
 [Service]
 Type=simple
 WorkingDirectory=$TARGET_DIR/XRComm_platform_gRPC/bin
-Environment=XRCOMM_READ_CONFIG=$BASE_DIR/XRComm_NVMe_loader/config/read_config.ini
+Environment=XRCOMM_READ_CONFIG=$READ_CONFIG
 ExecStart=$GRPC_BIN
 Restart=on-failure
 
@@ -123,6 +130,8 @@ python3 -m grpc_tools.protoc -I "$PROTO_DIR" --python_out="$CLIENT_DIR" --grpc_p
 
 echo -e "\n========================================"
 echo " Installation Complete!"
+echo " Selected package root: $VARIANT_ROOT"
+echo " Read-back config: $READ_CONFIG"
 echo " Services are now running. Verify with:"
 echo "   systemctl status xrcomm-server"
 echo "   systemctl status xrcomm-grpc-ctrl"

@@ -1,66 +1,67 @@
 # XRComm FCS Platform
 
-This directory contains the core binaries, gRPC servers, and example applications for the XRComm FCS Platform.
+This directory contains the core binaries, gRPC servers, playback tools, and example applications for the XRComm FCS Platform.
 
 ## Directory Structure Overview
 
-- **`install.sh` / `uninstall.sh`**: Scripts to setup and teardown the platform as systemd services.
-- **`XRComm_FCS_wideband_platform/`**: Contains the compiled driver binaries and public headers for the Wideband platform.
-- **`XRComm_FCS_8T8R_platform/`**: Reserved for the upcoming 8T8R platform binaries.
-- **`XRComm_wideband_hello_world/`**: Customer example applications showing how to connect to the Wideband pipeline.
-- **`XRComm_wideband_playback/`**: Remote playback utility for pre-recorded IQ waveforms.
-- **`QUICK_START.pdf`**: Customer guide for initial bring-up and testing.
+- **`install.sh` / `uninstall.sh`**: Scripts to set up and remove the selected platform as systemd services.
+- **`wideband/`**: Wideband package root, including `platform/`, `hello_world/`, `playback/`, `nvme_loader/`, and `Wideband_Quickstart.pdf`.
+- **`8T8R/`**: 8T8R package root, including `platform/`, `hello_world/`, `playback/`, `nvme_loader/`, and `8T8R_Quickstart.pdf`.
+- **`wideband/platform/`** and **`8T8R/platform/`**: Platform-specific driver binaries, public headers, gRPC services, and `config/read_config.ini`.
+- **`wideband/nvme_loader/`** and **`8T8R/nvme_loader/`**: Optional offline NVMe reader tools.
 
 ## Getting Started
 
 To install the platform, execute the installer as root:
+
 ```bash
 sudo ./install.sh
 ```
-*(Note: When prompted, accept the license and select Option `1` for the Wideband Platform).*
+
+When prompted, accept the license and select the platform you want to install.
 
 ## Verifying the Installation
 
 Once the installer finishes, verify that both the server and the gRPC control loop are active:
+
 ```bash
-# Check service status
 systemctl status xrcomm-server.service
 systemctl status xrcomm-grpc-ctrl.service
-
-# To view the live logs for the server
 journalctl -u xrcomm-server.service -f
 ```
 
 ## Testing the gRPC Control Loop
 
-The installer automatically compiles the protobuf files for you. You can immediately test the pipeline telemetry:
-```bash
-cd XRComm_FCS_wideband_platform/XRComm_platform_gRPC/client
+The installer automatically compiles the protobuf files for the selected platform. For example, to test Wideband telemetry:
 
-# Retrieve the real-time pipeline stats
+```bash
+cd wideband/platform/XRComm_platform_gRPC/client
 python3 xrcomm_grpc_client.py get-stats
 ```
 
-## Compiling the "Hello World" Examples
+For 8T8R, use:
 
-We have provided example C applications to demonstrate how to connect to the data plane using the installed system headers. 
 ```bash
-# Navigate to the example directory from the platform root
-cd XRComm_wideband_hello_world
+cd 8T8R/platform/XRComm_platform_gRPC/client
+python3 xrcomm_grpc_client.py get-stats
+```
 
-# Compile the examples
-mkdir build && cd build
+## Compiling Hello-World Examples
+
+Each platform keeps its examples inside its own variant root:
+
+```bash
+cd wideband/hello_world
+mkdir -p build && cd build
 cmake ..
 make
-
-# Run the standard IQ consumer
 ../bin/hello_world
 ```
 
-**Testing the Data Flow:** 
-If you leave `hello_world` running in one terminal, you can open a second terminal and use the gRPC client to turn on the IP data dispatch:
 ```bash
-cd XRComm_FCS_wideband_platform/XRComm_platform_gRPC/client
-python3 xrcomm_grpc_client.py set-ip on
+cd 8T8R/hello_world
+mkdir -p build && cd build
+cmake ..
+make
+../bin/hello_world
 ```
-You should immediately see the `hello_world` application wake up and begin printing power levels (dBFS) for the incoming batches.
