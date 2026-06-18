@@ -16,12 +16,6 @@ service PipelineControl {
   rpc SetLogging      (BoolRequest) returns (PipelineFlags);
   rpc SetIpMode       (BoolRequest) returns (PipelineFlags);
 
-  // NVMe read-back config (overwrites common/read_config.ini). After a
-  // gRPC SetLogging(false) stop, the primary auto-reads this many seconds of
-  // the latest capture out of NVMe (size = seconds * sample_rate_hz * 4).
-  rpc SetReadCapture     (ReadCaptureRequest) returns (StatusReply);
-  rpc SetReadCaptureRate (ReadRateRequest)    returns (StatusReply);
-
   // Graceful pipeline shutdown
   rpc Shutdown        (Empty)       returns (StatusReply);
 
@@ -50,27 +44,6 @@ message PipelineFlags {
 }
 
 message StatusReply { bool ok = 1; string error = 2; }
-
-message ReadCaptureRequest {
-  double seconds = 1;               // read_duration_seconds
-  double start_offset_seconds = 2;  // offset FROM THE START OF THE CAPTURE
-                                     // (not a wall-clock time); 0.0 = from
-                                     // the first record of the capture
-}
-message ReadRateRequest    { double sample_rate_hz = 1; } // receiver Tx rate (Hz)
-
-// NVMe read-back progress, surfaced on WatchStatus while the primary reads the
-// latest capture back out after a gRPC-stopped logging session.
-message ReadbackStatus {
-  uint32 state             = 1;  // 0 idle, 1 reading, 2 complete, 3 error
-  uint64 records_target    = 2;
-  uint64 records_done      = 3;
-  uint64 bytes_written     = 4;
-  double seconds_requested = 5;
-  double sample_rate_hz    = 6;
-  string last_event        = 7;  // timestamp of the capture being read
-  string output_dir        = 8;  // host dir receiving the .bin/.idx
-}
 
 // Pipeline primary counters
 message PipelineCounters {
@@ -126,12 +99,7 @@ message PlatformTelemetry {
   uint64 samples_received             = 2;  // total IQ samples received
   uint64 samples_logged              = 3;  // samples written to NVMe (0 if not logging)
   uint64 samples_processed_secondary  = 4;  // samples consumed by customer app(s)
-  uint64 packets_dropped              = 5;  // TOTAL loss across every stage below
-  uint64 drops_nic_rx_overflow        = 6;  // NIC hardware RX-ring overflow (imissed)
-  uint64 drops_no_mem                 = 7;  // processing-stage: clone/pool exhaustion
-  uint64 drops_ring_full              = 8;  // RX->processing / processing->logging ring full
-  uint64 drops_dsp                    = 9;  // FULL_PACKET dispatch-ring (DSP_MBUF_RING) full
-  uint64 drops_app                    = 10; // application-ring-full (per connected app)
+  uint64 packets_dropped              = 5;  // RX overflow + app-ring-full, combined
 }
 
 message SecondaryIPEntry {
@@ -153,7 +121,6 @@ message PipelineStatus {
   CombinedStats    stats    = 2;
   bool             running  = 3;
   uint64           uptime_ms = 4;
-  ReadbackStatus   readback  = 5;
 }
 
 // ── Per-API-mode statistics (GetModeStats) ──────────────────────────────────
