@@ -5,53 +5,6 @@
 #define CONSOLE_UPDATE_HZ   100     /* console refresh every 100 ticks = 1 s */
 
 /*
- * Steady-state diagnostics are published once per second to a JSON status
- * file in the working directory (the playback tree root). The gRPC control
- * server reads this file for GetPlaybackDiagnostics / WatchPlaybackDiagnostics
- * (Customer Package guide, Section 8.4). The proto contract is single-valued,
- * so read_input / wire_tx are the COMBINED (both-port) figures, matching the
- * "Wire Total" line of the dual-port console. v8T8R has no burst-trigger
- * state, so trigger_state is always "IDLE" and total_triggered_pkts is 0.
- *
- * The file is written atomically (temp + rename) so the server never reads a
- * partially written snapshot.
- */
-#define PLAYBACK_STATUS_PATH "playback_status.json"
-
-static void write_status_file(bool running, double running_time_s,
-                              int loops_completed, int loop_count_target,
-                              int trigger_burst_size,
-                              uint64_t tuning_rate, int64_t tuning_offset,
-                              double read_inst, double read_avg,
-                              double tx_inst, double tx_avg) {
-    static const char tmp[] = PLAYBACK_STATUS_PATH ".tmp";
-    FILE *f = fopen(tmp, "w");
-    if (!f) return;
-    fprintf(f,
-        "{\n"
-        "  \"playback_running\": %s,\n"
-        "  \"running_time_s\": %.6f,\n"
-        "  \"loops_completed\": %d,\n"
-        "  \"loop_count_target\": %d,\n"
-        "  \"trigger_state\": \"IDLE\",\n"
-        "  \"trigger_burst_size\": %d,\n"
-        "  \"total_triggered_pkts\": 0,\n"
-        "  \"tuning_rate_hz\": %lu,\n"
-        "  \"tuning_offset\": %ld,\n"
-        "  \"read_input_gbps_instant\": %.4f,\n"
-        "  \"read_input_gbps_average\": %.4f,\n"
-        "  \"wire_tx_gbps_instant\": %.4f,\n"
-        "  \"wire_tx_gbps_average\": %.4f\n"
-        "}\n",
-        running ? "true" : "false",
-        running_time_s, loops_completed, loop_count_target,
-        trigger_burst_size, tuning_rate, tuning_offset,
-        read_inst, read_avg, tx_inst, tx_avg);
-    fclose(f);
-    rename(tmp, PLAYBACK_STATUS_PATH);
-}
-
-/*
  * Apply a trigger change to the correct port's header template.
  *
  * ch_global : 0-7  (0-3 = Port 0, 4-7 = Port 1)
@@ -216,7 +169,12 @@ void stats_monitor_run(GlobalConfig      *gcfg,
 
         last_cycles = now;
 
-        /* ── 1 s tick: publish diagnostics, then (optionally) draw console ─ */
+        if (!show_display) {
+            tick_counter = 0;
+            continue;
+        }
+
+        /* ── Console update (1 s interval) ─────────────────────────────── */
         if (++tick_counter >= CONSOLE_UPDATE_HZ) {
             double dt_console = (double)(now - console_last_ts) / (double)tsc_hz;
 
@@ -233,16 +191,6 @@ void stats_monitor_run(GlobalConfig      *gcfg,
             }
             double total_delta = total_avg_read - total_avg_tx;
 
-            /* Publish steady-state diagnostics for the gRPC server (combined
-             * both-port throughput; see write_status_file notes). */
-            write_status_file(true, wall_elapsed,
-                              ports[0]->loops_completed, gcfg->loop_count,
-                              gcfg->trigger_burst_size,
-                              gcfg->tuning_rate, gcfg->tuning_offset,
-                              read_gbps[0] + read_gbps[1], total_avg_read,
-                              tx_gbps[0] + tx_gbps[1], total_avg_tx);
-
-          if (show_display) {
             printf("\033[H\033[2J");
             printf("=== XRComm Playback v8T8R ===\n");
             printf("Wall Time:      %8.2f s\n", wall_elapsed);
@@ -304,21 +252,10 @@ void stats_monitor_run(GlobalConfig      *gcfg,
             printf("----------------------------------------------------------------------\n");
             printf("NIC Drops P0: %lu  |  NIC Drops P1: %lu\n",
                    ports[0]->tx_dropped, ports[1]->tx_dropped);
-          } /* if (show_display) */
 
             console_last_ts = now;
             tick_counter    = 0;
         }
-    }
-
-    /* Final snapshot: mark playback as stopped so the gRPC server reports it. */
-    {
-        double wall_final = (double)(rte_get_timer_cycles() - start_cycles) / (double)tsc_hz;
-        write_status_file(false, wall_final,
-                          ports[0]->loops_completed, gcfg->loop_count,
-                          gcfg->trigger_burst_size,
-                          gcfg->tuning_rate, gcfg->tuning_offset,
-                          0.0, 0.0, 0.0, 0.0);
     }
 
     fcntl(STDIN_FILENO, F_SETFL, stdin_flags);

@@ -23,7 +23,7 @@
  *  xrcomm_dsp_secondary (not both at once on that ring). It still runs in
  *  parallel with the IQ secondaries and NVMe logging (independent channels).
  *
- *  Enable FULL_PACKET dispatch over gRPC:  xrcomm_grpc_client.py set-dsp on
+ *  Enable FULL_PACKET dispatch over gRPC:  xrcomm_grpc_client.py set-fullpkt on
  *  Launch as root (DPDK secondary):        sudo ./hello_world_fullpkt
  * =============================================================================
  */
@@ -35,9 +35,9 @@
 /* NOTE: do NOT define XRCOMM_IQ_RINGS_OWNER here — only the primary (main.c)
  * owns the IQ-ring storage. A secondary that defines it would instantiate a
  * second, private copy of those rings. */
-#include <xrcomm-wideband/pipeline.h>                /* ComplexInt16, FULL_PACKET_SIZE,        */
+#include "pipeline.h"                /* ComplexInt16, FULL_PACKET_SIZE,        */
                                      /* MAC_HEADER_SIZE, SAMPLES_PER_PACKET    */
-#include <xrcomm-wideband/xrcomm_ip_shm_channel.h>   /* xrcomm_ctrl_shm_t, attach, flags       */
+#include "xrcomm_ip_shm_channel.h"   /* xrcomm_ctrl_shm_t, attach, flags       */
 
 #include <stdio.h>
 #include <stdint.h>
@@ -85,7 +85,7 @@ int main(int argc, char **argv)
 
     printf("\n================================================================\n");
     printf("  XRComm wideband Hello-World — FULL_PACKET DPDK consumer\n");
-    printf("  Enable dispatch with:  xrcomm_grpc_client.py set-dsp on\n");
+    printf("  Enable dispatch with:  xrcomm_grpc_client.py set-fullpkt on\n");
     printf("================================================================\n\n");
 
     /* ── 1. DPDK secondary EAL init ─────────────────────────────────────────

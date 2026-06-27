@@ -7,16 +7,21 @@ Usage:
 
 Commands:
     get-flags                   Read current mode flags
-    set-dsp <on|off>            Enable/disable DSP (FULL_PACKET_MODE) — independent
+    set-fullpacket <on|off>     Enable/disable Full-Packet Mode (FULL_PACKET_MODE) — independent
     set-logging <on|off>        Enable/disable NVMe logging — independent
     set-ip <on|off>             Enable/disable IP mode (IQ_MODE) — independent
     get-stats                   Get combined stats with per-channel 8T8R telemetry
     list-ips                    List registered secondary IQ applications
     watch-status [N]            Stream live status updates (default 10 updates)
+    set-read-capture <ch> <start_ts> <duration>
+                                Set per-channel auto-read start offset + duration (seconds)
+    set-read-rate <ch> <hz>     Set per-channel receiver sample rate (Hz)
+    get-read-config             Show the per-channel auto-read configuration
+    get-read-status             Show live NVMe auto-read progress
     shutdown                    Stop the platform pipeline cleanly
 
 Notes:
-    - All three modes (DSP, logging, IP) are independent and may run simultaneously.
+    - All three modes (Full-Packet, logging, IP) are independent and may run simultaneously.
     - Per-channel telemetry reports one entry per logical channel (0..7).
     - Channel = hsp_port * 4 + per_port_channel_index.
 
@@ -49,11 +54,10 @@ def make_channel(host: str, port: int):
 
 def print_flags(flags):
     """Pretty-print PipelineFlags."""
-    print(f"  dsp_mode (FULL_PACKET_MODE): {'ON' if flags.enable_dsp_mode else 'off'}")
+    print(f"  full_packet_mode (FULL_PACKET_MODE): {'ON' if flags.enable_full_packet_mode else 'off'}")
     print(f"  logging  (NVMe IQ capture):  {'ON' if flags.enable_logging  else 'off'}")
     print(f"  ip_mode  (IQ_MODE dispatch): {'ON' if flags.enable_ip_mode  else 'off'}")
     print(f"  rt_loop:                     {'ON' if flags.execute_rt_loop else 'off'}")
-    print("  (all modes independent — may all be ON simultaneously)")
 
 
 def cmd_get_flags(stub):
@@ -64,9 +68,9 @@ def cmd_get_flags(stub):
 
 def cmd_set_mode(stub, rpc_name: str, value: bool):
     req = pb2.BoolRequest(value=value)
-    if rpc_name == "dsp":
-        resp = stub.SetDspMode(req)
-        label = "DSP (FULL_PACKET_MODE)"
+    if rpc_name == "fullpacket":
+        resp = stub.SetFullPacketMode(req)
+        label = "Full-Packet Mode (FULL_PACKET_MODE)"
     elif rpc_name == "logging":
         resp = stub.SetLogging(req)
         label = "NVMe logging"
@@ -83,6 +87,15 @@ def cmd_set_mode(stub, rpc_name: str, value: bool):
 def cmd_get_stats(stub):
     resp = stub.GetStats(pb2.Empty())
     print("=== Combined Stats ===")
+
+    # Global pipeline counters
+    pl = resp.pipeline
+    print(f"\nPipeline (platform-wide):")
+    print(f"  packets_received={pl.packets_received}  "
+          f"packets_processed={pl.packets_processed}")
+    print(f"  blocks_processed={pl.blocks_processed}  "
+          f"blocks_logged={pl.blocks_logged}")
+    print(f"  drops_no_mem={pl.drops_no_mem}  drops_ring_full={pl.drops_ring_full}")
 
     # DSP
     d = resp.dsp
@@ -112,6 +125,59 @@ def cmd_get_stats(stub):
     else:
         print("\nRegistered IQ Applications: (none)")
 
+    # NVMe auto-read status
+    rd = resp.read_status
+    state = "IN PROGRESS" if rd.read_in_progress else "idle"
+    suffix = " (cycle complete)" if rd.read_cycle_done else ""
+    print(f"\nNVMe Auto-Read: {state}{suffix}")
+    for c in rd.channels:
+        if c.target_records == 0 and not c.active and not c.done:
+            continue
+        cstate = "READING" if c.active else ("done" if c.done else "pending")
+        print(f"  ch{c.channel}: {cstate}  start_ts={c.start_ts:.3f}s  "
+              f"dur={c.duration:.3f}s  rate={c.sample_rate}Hz  "
+              f"skip={c.skip_records}  target={c.target_records}  "
+              f"read={c.records_read}")
+
+
+def cmd_set_read_capture(stub, channel, start_ts, duration):
+    req = pb2.ReadCaptureRequest(channel=channel, start_ts=start_ts, duration=duration)
+    resp = stub.SetReadCapture(req)
+    print(f"=== Set Read Capture (ch{channel}, start_ts={start_ts}s, duration={duration}s) ===")
+    _print_read_config(resp)
+
+
+def cmd_set_read_rate(stub, channel, hz):
+    req = pb2.ReadCaptureRateRequest(channel=channel, sample_rate=hz)
+    resp = stub.SetReadCaptureRate(req)
+    print(f"=== Set Read Capture Rate (ch{channel}, {hz} Hz) ===")
+    _print_read_config(resp)
+
+
+def cmd_get_read_config(stub):
+    resp = stub.GetReadConfig(pb2.Empty())
+    print("=== Auto-Read Configuration (configured read_config.ini) ===")
+    _print_read_config(resp)
+
+
+def cmd_get_read_status(stub):
+    resp = stub.GetReadStatus(pb2.Empty())
+    state = "IN PROGRESS" if resp.read_in_progress else "idle"
+    suffix = " (cycle complete)" if resp.read_cycle_done else ""
+    print(f"=== NVMe Auto-Read Status: {state}{suffix} ===")
+    for c in resp.channels:
+        cstate = "READING" if c.active else ("done" if c.done else "pending")
+        print(f"  ch{c.channel}: {cstate}  start_ts={c.start_ts:.3f}s  "
+              f"dur={c.duration:.3f}s  rate={c.sample_rate}Hz  "
+              f"skip={c.skip_records}rec  target={c.target_records}rec  "
+              f"read={c.records_read}rec")
+
+
+def _print_read_config(resp):
+    for e in resp.channels:
+        print(f"  ch{e.ch_no}: start_ts={e.start_ts:.3f}s  "
+              f"duration={e.duration:.3f}s  sample_rate={e.sample_rate}Hz")
+
 
 def cmd_list_ips(stub):
     resp = stub.ListSecondaryIPs(pb2.Empty())
@@ -134,7 +200,7 @@ def cmd_watch_status(stub, n_updates: int = 10):
         f = ps.flags
         uptime_s = ps.uptime_ms // 1000
         print(f"\n[{uptime_s:>6}s] running={ps.running}  "
-              f"dsp={'ON' if f.enable_dsp_mode else 'off'}  "
+              f"full_packet={'ON' if f.enable_full_packet_mode else 'off'}  "
               f"logging={'ON' if f.enable_logging else 'off'}  "
               f"ip={'ON' if f.enable_ip_mode else 'off'}")
         for t in ps.stats.channel_telemetry:
@@ -142,6 +208,12 @@ def cmd_watch_status(stub, n_updates: int = 10):
                 print(f"         ch[{t.hsp_port}/{t.channel}] "
                       f"rx={t.samples_received}  logged={t.samples_logged}  "
                       f"dropped={t.packets_dropped}")
+        # Show auto-read progress while it is running
+        rd = ps.stats.read_status
+        if rd.read_in_progress:
+            reading = [c.channel for c in rd.channels if c.active]
+            print(f"         >>> NVMe AUTO-READ IN PROGRESS — reading channel(s): "
+                  f"{reading}")
         count += 1
         if count >= n_updates:
             break
@@ -180,7 +252,7 @@ def main():
     try:
         if cmd == "get-flags":
             cmd_get_flags(stub)
-        elif cmd in ("set-dsp", "set-logging", "set-ip"):
+        elif cmd in ("set-fullpacket", "set-logging", "set-ip"):
             if not args.args:
                 print(f"Usage: {cmd} <on|off>")
                 sys.exit(1)
@@ -194,6 +266,21 @@ def main():
         elif cmd == "watch-status":
             n = int(args.args[0]) if args.args else 10
             cmd_watch_status(stub, n)
+        elif cmd == "set-read-capture":
+            if len(args.args) < 3:
+                print("Usage: set-read-capture <channel> <start_ts_sec> <duration_sec>")
+                sys.exit(1)
+            cmd_set_read_capture(stub, int(args.args[0]),
+                                 float(args.args[1]), float(args.args[2]))
+        elif cmd == "set-read-rate":
+            if len(args.args) < 2:
+                print("Usage: set-read-rate <channel> <sample_rate_hz>")
+                sys.exit(1)
+            cmd_set_read_rate(stub, int(args.args[0]), int(args.args[1]))
+        elif cmd == "get-read-config":
+            cmd_get_read_config(stub)
+        elif cmd == "get-read-status":
+            cmd_get_read_status(stub)
         elif cmd == "shutdown":
             cmd_shutdown(stub)
         else:

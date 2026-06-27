@@ -12,7 +12,7 @@ service PipelineControl {
   rpc GetFlags          (Empty)       returns (PipelineFlags);
 
   // Set individual flags — all modes are INDEPENDENT, no mutual exclusion
-  rpc SetDspMode        (BoolRequest) returns (PipelineFlags);   // FULL_PACKET_MODE
+  rpc SetFullPacketMode (BoolRequest) returns (PipelineFlags);   // FULL_PACKET_MODE
   rpc SetLogging        (BoolRequest) returns (PipelineFlags);   // NVMe logging
   rpc SetIpMode         (BoolRequest) returns (PipelineFlags);   // IQ_MODE
 
@@ -27,6 +27,15 @@ service PipelineControl {
   // 1 Hz streaming status (flags + stats + uptime)
   rpc WatchStatus       (Empty)       returns (stream PipelineStatus);
 
+  // ── NVMe auto-read configuration ─────────────────────────────────────────
+  // Per-channel read configuration written to the configured read_config.ini.
+  // The platform performs one read pass after SetLogging(off), reading only
+  // the channels that captured data this session.
+  rpc SetReadCapture     (ReadCaptureRequest)     returns (ReadConfig);   // start_ts + duration for one channel
+  rpc SetReadCaptureRate (ReadCaptureRateRequest) returns (ReadConfig);   // sample_rate for one channel
+  rpc GetReadConfig      (Empty)                   returns (ReadConfig);   // all 8 channel rows
+  rpc GetReadStatus      (Empty)                   returns (ReadStatus);   // live auto-read progress
+
   // ── Control ──────────────────────────────────────────────────────────────
   // Graceful pipeline shutdown
   rpc Shutdown          (Empty)       returns (StatusReply);
@@ -39,7 +48,7 @@ message StatusReply { bool ok = 1; string error = 2; }
 
 // ── Mode flags ─────────────────────────────────────────────────────────────
 message PipelineFlags {
-  bool enable_dsp_mode = 1;   // FULL_PACKET_MODE — independent
+  bool enable_full_packet_mode = 1;   // FULL_PACKET_MODE — independent
   bool enable_logging  = 2;   // NVMe raw IQ capture — independent
   bool enable_ip_mode  = 3;   // IQ_MODE per-channel dispatch — independent
   bool execute_rt_loop = 4;   // master pipeline keep-alive
@@ -103,6 +112,54 @@ message CombinedStats {
   DspStats                    dsp               = 2;
   repeated SpectrumIPStats    spectrum          = 3;
   repeated ChannelTelemetry   channel_telemetry = 4;  // one entry per channel (all 8)
+  ReadStatus                  read_status       = 5;  // NVMe auto-read progress
+}
+
+// ── NVMe auto-read configuration (per channel) ─────────────────────────────
+// SetReadCapture sets start_ts + duration for one channel; SetReadCaptureRate
+// sets sample_rate for one channel. Each setter writes only its channel's row
+// in the configured read_config.ini and returns the full snapshot of all 8 rows.
+message ReadCaptureRequest {
+  uint32 channel  = 1;  // 0..7
+  double start_ts = 2;  // seconds offset from event start (default 0.0)
+  double duration = 3;  // seconds to read (default 1.0)
+}
+
+message ReadCaptureRateRequest {
+  uint32 channel     = 1;  // 0..7
+  uint64 sample_rate = 2;  // Hz
+}
+
+message ReadConfigEntry {
+  uint32 ch_no       = 1;  // channel index (0..7)
+  double start_ts    = 2;  // seconds offset from event start
+  double duration    = 3;  // seconds to read
+  uint64 sample_rate = 4;  // Hz
+}
+
+message ReadConfig {
+  repeated ReadConfigEntry channels = 1;  // all 8 channel rows
+}
+
+// ── NVMe auto-read live status ──────────────────────────────────────────────
+// Published while the platform performs the post-logging read. The status flag
+// stays active for approximately the requested read duration.
+message ReadChannelStatus {
+  uint32 channel        = 1;  // 0..7
+  bool   active         = 2;  // currently reading this channel
+  bool   done           = 3;  // finished reading this channel this cycle
+  double start_ts       = 4;  // seconds offset applied
+  double duration       = 5;  // seconds requested
+  uint64 sample_rate    = 6;  // Hz used for conversion
+  uint64 skip_records   = 7;  // computed start-offset record count
+  uint64 target_records = 8;  // computed record count to read
+  uint64 records_read   = 9;  // progress
+}
+
+message ReadStatus {
+  bool   read_in_progress = 1;  // any channel currently reading
+  bool   read_cycle_done  = 2;  // the whole read cycle completed this run
+  repeated ReadChannelStatus channels = 3;  // one entry per channel
 }
 
 // ── Secondary IP registry entry ────────────────────────────────────────────

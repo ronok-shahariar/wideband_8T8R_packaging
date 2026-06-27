@@ -13,7 +13,7 @@
  *
  * Build:
  *   gcc -O2 -o hello_world hello_world.c \
- *       -I../platform/XRComm_platform_drivers/include \
+ *       -I../XRComm_FCS_8T8R_platform/XRComm_platform_drivers/include \
  *       -lrt -lpthread
  *
  * Run (platform must be running with IP mode enabled):
@@ -34,8 +34,15 @@
 #include <signal.h>
 
 /* ── Configuration ──────────────────────────────────────────────────────── */
-#define HSP_PORT    0          /* HSP port to subscribe to (0 or 1)         */
-#define N_CHANNELS  8          /* open ALL channels on the HSP port          */
+/* The platform exposes 8 logical channels across two HSP ports:
+ *   port 0 carries logical channels 0..3
+ *   port 1 carries logical channels 4..7
+ * This example opens all 8 logical channels, deriving the port from the
+ * channel index. The logical channel id is what the platform tags each batch
+ * with and is what xrcomm_ip_client_init_port_channel() subscribes to. */
+#define N_CHANNELS        8        /* all 8 logical channels                  */
+#define CHANNELS_PER_PORT 4        /* logical channels per HSP port           */
+#define PORT_OF_CHANNEL(ch)  ((uint32_t)((ch) / CHANNELS_PER_PORT))  /* 0 or 1 */
 
 /* ── Signal handling ─────────────────────────────────────────────────────── */
 static volatile bool g_running = true;
@@ -91,10 +98,13 @@ int main(void)
     for (int i = 0; i < N_CHANNELS; i++) {
         snprintf(name[i], sizeof(name[i]), "hello_world_ch%d", i);
 
-        /* xrcomm_ip_client_init_port_channel: 8T8R API — one stream per channel */
-        if (xrcomm_ip_client_init_port_channel(&ch[i], name[i], HSP_PORT, i) != 0) {
-            fprintf(stderr, "[HW] Failed to register channel %d — "
-                    "is xrcomm_server running?\n", i);
+        /* Logical channel i lives on port i/4 (ch 0-3 -> port 0, ch 4-7 -> port 1).
+         * xrcomm_ip_client_init_port_channel subscribes this slot to exactly
+         * that (port, logical-channel) stream. */
+        uint32_t port = PORT_OF_CHANNEL(i);
+        if (xrcomm_ip_client_init_port_channel(&ch[i], name[i], port, i) != 0) {
+            fprintf(stderr, "[HW] Failed to register channel %d (port %u) — "
+                    "is xrcomm_server running?\n", i, port);
             /* Shutdown already-opened channels */
             for (int j = 0; j < i; j++) xrcomm_ip_client_shutdown(&ch[j]);
             return 1;
@@ -130,11 +140,12 @@ int main(void)
             any_data = true;
 
             /* Verify the batch belongs to the expected port and channel.
-             * s->hsp_port and s->channel are set by the platform per batch. */
-            if (s->hsp_port != HSP_PORT || s->channel != (uint8_t)i) {
+             * s->hsp_port and s->channel are set by the platform per batch.
+             * Logical channel i is on port i/4. */
+            if (s->hsp_port != PORT_OF_CHANNEL(i) || s->channel != (uint8_t)i) {
                 fprintf(stderr, "[HW] Unexpected source: port=%u ch=%u "
                         "(expected port=%u ch=%d)\n",
-                        s->hsp_port, s->channel, HSP_PORT, i);
+                        s->hsp_port, s->channel, PORT_OF_CHANNEL(i), i);
             }
 
             /* Process: compute per-batch power */
@@ -166,7 +177,8 @@ int main(void)
 
         /* Periodic stats print */
         if (++iterations % print_every == 0) {
-            printf("[HW] Channel summary (port %u):\n", HSP_PORT);
+            printf("[HW] Channel summary (logical channels 0..%d):\n",
+                   N_CHANNELS - 1);
             for (int i = 0; i < N_CHANNELS; i++) {
                 if (stats[i].batches_rx == 0) continue;
                 float mean = stats[i].mean_count ?

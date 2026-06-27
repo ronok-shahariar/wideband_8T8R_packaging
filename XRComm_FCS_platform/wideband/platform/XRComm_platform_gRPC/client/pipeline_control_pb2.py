@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16pipeline_control.proto\x12\x06xrcomm\"\x07\n\x05\x45mpty\"\x1c\n\x0b\x42oolRequest\x12\r\n\x05value\x18\x01 \x01(\x08\"q\n\rPipelineFlags\x12\x17\n\x0f\x65nable_dsp_mode\x18\x01 \x01(\x08\x12\x16\n\x0e\x65nable_logging\x18\x02 \x01(\x08\x12\x16\n\x0e\x65nable_ip_mode\x18\x03 \x01(\x08\x12\x17\n\x0f\x65xecute_rt_loop\x18\x04 \x01(\x08\"(\n\x0bStatusReply\x12\n\n\x02ok\x18\x01 \x01(\x08\x12\r\n\x05\x65rror\x18\x02 \x01(\t\"\xa7\x01\n\x10PipelineCounters\x12\x18\n\x10packets_received\x18\x01 \x01(\x04\x12\x19\n\x11packets_processed\x18\x02 \x01(\x04\x12\x18\n\x10\x62locks_processed\x18\x03 \x01(\x04\x12\x15\n\rblocks_logged\x18\x04 \x01(\x04\x12\x14\n\x0c\x64rops_no_mem\x18\x05 \x01(\x04\x12\x17\n\x0f\x64rops_ring_full\x18\x06 \x01(\x04\"\x82\x02\n\x08\x44spStats\x12\x11\n\tdsp_ready\x18\x01 \x01(\x08\x12\x18\n\x10\x65pochs_processed\x18\x02 \x01(\x04\x12\x16\n\x0e\x65pochs_dropped\x18\x03 \x01(\x04\x12\x16\n\x0epeaks_detected\x18\x04 \x01(\x04\x12\x13\n\x0bgood_frames\x18\x05 \x01(\x04\x12\x12\n\nbad_frames\x18\x06 \x01(\x04\x12\x13\n\x0blast_cfo_hz\x18\x07 \x01(\x02\x12\x11\n\tlast_rssi\x18\x08 \x01(\x02\x12\x18\n\x10\x61\x32pj_write_index\x18\t \x01(\r\x12\x17\n\x0f\x63\x66o_write_index\x18\n \x01(\r\x12\x15\n\rtrigger_count\x18\x0b \x01(\x04\"\xdf\x01\n\x0fSpectrumIPStats\x12\x0f\n\x07slot_id\x18\x01 \x01(\r\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x16\n\x0e\x62\x61tches_pushed\x18\x03 \x01(\x04\x12\x17\n\x0f\x62\x61tches_dropped\x18\x04 \x01(\x04\x12\x15\n\rsamples_total\x18\x05 \x01(\x04\x12\x18\n\x10\x62\x61tches_received\x18\x06 \x01(\x04\x12\x19\n\x11\x62\x61tches_processed\x18\x07 \x01(\x04\x12\x17\n\x0flast_power_dbfs\x18\x08 \x01(\x02\x12\x17\n\x0fmean_power_dbfs\x18\t \x01(\x02\"\xbc\x01\n\rCombinedStats\x12*\n\x08pipeline\x18\x01 \x01(\x0b\x32\x18.xrcomm.PipelineCounters\x12\x1d\n\x03\x64sp\x18\x02 \x01(\x0b\x32\x10.xrcomm.DspStats\x12)\n\x08spectrum\x18\x03 \x03(\x0b\x32\x17.xrcomm.SpectrumIPStats\x12\x35\n\x12platform_telemetry\x18\x04 \x01(\x0b\x32\x19.xrcomm.PlatformTelemetry\"\x95\x01\n\x11PlatformTelemetry\x12\x10\n\x08hsp_port\x18\x01 \x01(\r\x12\x18\n\x10samples_received\x18\x02 \x01(\x04\x12\x16\n\x0esamples_logged\x18\x03 \x01(\x04\x12#\n\x1bsamples_processed_secondary\x18\x04 \x01(\x04\x12\x17\n\x0fpackets_dropped\x18\x05 \x01(\x04\"\x89\x01\n\x10SecondaryIPEntry\x12\x0f\n\x07slot_id\x18\x01 \x01(\r\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0b\n\x03pid\x18\x03 \x01(\x05\x12\x0f\n\x07rx_mode\x18\x04 \x01(\t\x12\x12\n\nring_ready\x18\x05 \x01(\x08\x12\x0e\n\x06\x61\x63tive\x18\x06 \x01(\x08\x12\x14\n\x0cprocess_type\x18\x07 \x01(\t\"<\n\x0fSecondaryIPList\x12)\n\x07\x65ntries\x18\x01 \x03(\x0b\x32\x18.xrcomm.SecondaryIPEntry\"\x80\x01\n\x0ePipelineStatus\x12$\n\x05\x66lags\x18\x01 \x01(\x0b\x32\x15.xrcomm.PipelineFlags\x12$\n\x05stats\x18\x02 \x01(\x0b\x32\x15.xrcomm.CombinedStats\x12\x0f\n\x07running\x18\x03 \x01(\x08\x12\x11\n\tuptime_ms\x18\x04 \x01(\x04\"M\n\x0f\x41piModeCounters\x12\x0c\n\x04mode\x18\x01 \x01(\t\x12\n\n\x02rx\x18\x02 \x01(\x04\x12\x11\n\tprocessed\x18\x03 \x01(\x04\x12\r\n\x05\x64rops\x18\x04 \x01(\x04\"\x7f\n\x0f\x41ppModeCounters\x12\x0f\n\x07slot_id\x18\x01 \x01(\r\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0f\n\x07rx_mode\x18\x03 \x01(\t\x12\n\n\x02rx\x18\x04 \x01(\x04\x12\x11\n\tprocessed\x18\x05 \x01(\x04\x12\r\n\x05\x64rops\x18\x06 \x01(\x04\x12\x0e\n\x06\x61\x63tive\x18\x07 \x01(\x08\"\xb1\x01\n\tModeStats\x12,\n\x0b\x66ull_packet\x18\x01 \x01(\x0b\x32\x17.xrcomm.ApiModeCounters\x12#\n\x02iq\x18\x02 \x01(\x0b\x32\x17.xrcomm.ApiModeCounters\x12*\n\tlog_block\x18\x03 \x01(\x0b\x32\x17.xrcomm.ApiModeCounters\x12%\n\x04\x61pps\x18\x04 \x03(\x0b\x32\x17.xrcomm.AppModeCounters2\xf8\x03\n\x0fPipelineControl\x12\x30\n\x08GetFlags\x12\r.xrcomm.Empty\x1a\x15.xrcomm.PipelineFlags\x12\x38\n\nSetDspMode\x12\x13.xrcomm.BoolRequest\x1a\x15.xrcomm.PipelineFlags\x12\x38\n\nSetLogging\x12\x13.xrcomm.BoolRequest\x1a\x15.xrcomm.PipelineFlags\x12\x37\n\tSetIpMode\x12\x13.xrcomm.BoolRequest\x1a\x15.xrcomm.PipelineFlags\x12.\n\x08Shutdown\x12\r.xrcomm.Empty\x1a\x13.xrcomm.StatusReply\x12\x30\n\x08GetStats\x12\r.xrcomm.Empty\x1a\x15.xrcomm.CombinedStats\x12\x30\n\x0cGetModeStats\x12\r.xrcomm.Empty\x1a\x11.xrcomm.ModeStats\x12:\n\x10ListSecondaryIPs\x12\r.xrcomm.Empty\x1a\x17.xrcomm.SecondaryIPList\x12\x36\n\x0bWatchStatus\x12\r.xrcomm.Empty\x1a\x16.xrcomm.PipelineStatus0\x01\x42\x19Z\x17xrcomm/pipeline_controlb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16pipeline_control.proto\x12\x06xrcomm\"\x07\n\x05\x45mpty\"\x1c\n\x0b\x42oolRequest\x12\r\n\x05value\x18\x01 \x01(\x08\"u\n\rPipelineFlags\x12\x1b\n\x13\x65nable_fullpkt_mode\x18\x01 \x01(\x08\x12\x16\n\x0e\x65nable_logging\x18\x02 \x01(\x08\x12\x16\n\x0e\x65nable_ip_mode\x18\x03 \x01(\x08\x12\x17\n\x0f\x65xecute_rt_loop\x18\x04 \x01(\x08\"(\n\x0bStatusReply\x12\n\n\x02ok\x18\x01 \x01(\x08\x12\r\n\x05\x65rror\x18\x02 \x01(\t\"C\n\x12ReadCaptureRequest\x12\x0f\n\x07seconds\x18\x01 \x01(\x01\x12\x1c\n\x14start_offset_seconds\x18\x02 \x01(\x01\")\n\x0fReadRateRequest\x12\x16\n\x0esample_rate_hz\x18\x01 \x01(\x01\"\xbf\x01\n\x0eReadbackStatus\x12\r\n\x05state\x18\x01 \x01(\r\x12\x16\n\x0erecords_target\x18\x02 \x01(\x04\x12\x14\n\x0crecords_done\x18\x03 \x01(\x04\x12\x15\n\rbytes_written\x18\x04 \x01(\x04\x12\x19\n\x11seconds_requested\x18\x05 \x01(\x01\x12\x16\n\x0esample_rate_hz\x18\x06 \x01(\x01\x12\x12\n\nlast_event\x18\x07 \x01(\t\x12\x12\n\noutput_dir\x18\x08 \x01(\t\"\xa7\x01\n\x10PipelineCounters\x12\x18\n\x10packets_received\x18\x01 \x01(\x04\x12\x19\n\x11packets_processed\x18\x02 \x01(\x04\x12\x18\n\x10\x62locks_processed\x18\x03 \x01(\x04\x12\x15\n\rblocks_logged\x18\x04 \x01(\x04\x12\x14\n\x0c\x64rops_no_mem\x18\x05 \x01(\x04\x12\x17\n\x0f\x64rops_ring_full\x18\x06 \x01(\x04\"\x82\x02\n\x08\x44spStats\x12\x11\n\tdsp_ready\x18\x01 \x01(\x08\x12\x18\n\x10\x65pochs_processed\x18\x02 \x01(\x04\x12\x16\n\x0e\x65pochs_dropped\x18\x03 \x01(\x04\x12\x16\n\x0epeaks_detected\x18\x04 \x01(\x04\x12\x13\n\x0bgood_frames\x18\x05 \x01(\x04\x12\x12\n\nbad_frames\x18\x06 \x01(\x04\x12\x13\n\x0blast_cfo_hz\x18\x07 \x01(\x02\x12\x11\n\tlast_rssi\x18\x08 \x01(\x02\x12\x18\n\x10\x61\x32pj_write_index\x18\t \x01(\r\x12\x17\n\x0f\x63\x66o_write_index\x18\n \x01(\r\x12\x15\n\rtrigger_count\x18\x0b \x01(\x04\"\xdf\x01\n\x0fSpectrumIPStats\x12\x0f\n\x07slot_id\x18\x01 \x01(\r\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x16\n\x0e\x62\x61tches_pushed\x18\x03 \x01(\x04\x12\x17\n\x0f\x62\x61tches_dropped\x18\x04 \x01(\x04\x12\x15\n\rsamples_total\x18\x05 \x01(\x04\x12\x18\n\x10\x62\x61tches_received\x18\x06 \x01(\x04\x12\x19\n\x11\x62\x61tches_processed\x18\x07 \x01(\x04\x12\x17\n\x0flast_power_dbfs\x18\x08 \x01(\x02\x12\x17\n\x0fmean_power_dbfs\x18\t \x01(\x02\"\xbc\x01\n\rCombinedStats\x12*\n\x08pipeline\x18\x01 \x01(\x0b\x32\x18.xrcomm.PipelineCounters\x12\x1d\n\x03\x64sp\x18\x02 \x01(\x0b\x32\x10.xrcomm.DspStats\x12)\n\x08spectrum\x18\x03 \x03(\x0b\x32\x17.xrcomm.SpectrumIPStats\x12\x35\n\x12platform_telemetry\x18\x04 \x01(\x0b\x32\x19.xrcomm.PlatformTelemetry\"\x89\x02\n\x11PlatformTelemetry\x12\x10\n\x08hsp_port\x18\x01 \x01(\r\x12\x18\n\x10samples_received\x18\x02 \x01(\x04\x12\x16\n\x0esamples_logged\x18\x03 \x01(\x04\x12#\n\x1bsamples_processed_secondary\x18\x04 \x01(\x04\x12\x17\n\x0fpackets_dropped\x18\x05 \x01(\x04\x12\x1d\n\x15\x64rops_nic_rx_overflow\x18\x06 \x01(\x04\x12\x14\n\x0c\x64rops_no_mem\x18\x07 \x01(\x04\x12\x17\n\x0f\x64rops_ring_full\x18\x08 \x01(\x04\x12\x11\n\tdrops_dsp\x18\t \x01(\x04\x12\x11\n\tdrops_app\x18\n \x01(\x04\"\x89\x01\n\x10SecondaryIPEntry\x12\x0f\n\x07slot_id\x18\x01 \x01(\r\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0b\n\x03pid\x18\x03 \x01(\x05\x12\x0f\n\x07rx_mode\x18\x04 \x01(\t\x12\x12\n\nring_ready\x18\x05 \x01(\x08\x12\x0e\n\x06\x61\x63tive\x18\x06 \x01(\x08\x12\x14\n\x0cprocess_type\x18\x07 \x01(\t\"<\n\x0fSecondaryIPList\x12)\n\x07\x65ntries\x18\x01 \x03(\x0b\x32\x18.xrcomm.SecondaryIPEntry\"\xaa\x01\n\x0ePipelineStatus\x12$\n\x05\x66lags\x18\x01 \x01(\x0b\x32\x15.xrcomm.PipelineFlags\x12$\n\x05stats\x18\x02 \x01(\x0b\x32\x15.xrcomm.CombinedStats\x12\x0f\n\x07running\x18\x03 \x01(\x08\x12\x11\n\tuptime_ms\x18\x04 \x01(\x04\x12(\n\x08readback\x18\x05 \x01(\x0b\x32\x16.xrcomm.ReadbackStatus\"M\n\x0f\x41piModeCounters\x12\x0c\n\x04mode\x18\x01 \x01(\t\x12\n\n\x02rx\x18\x02 \x01(\x04\x12\x11\n\tprocessed\x18\x03 \x01(\x04\x12\r\n\x05\x64rops\x18\x04 \x01(\x04\"\x7f\n\x0f\x41ppModeCounters\x12\x0f\n\x07slot_id\x18\x01 \x01(\r\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0f\n\x07rx_mode\x18\x03 \x01(\t\x12\n\n\x02rx\x18\x04 \x01(\x04\x12\x11\n\tprocessed\x18\x05 \x01(\x04\x12\r\n\x05\x64rops\x18\x06 \x01(\x04\x12\x0e\n\x06\x61\x63tive\x18\x07 \x01(\x08\"\xb1\x01\n\tModeStats\x12,\n\x0b\x66ull_packet\x18\x01 \x01(\x0b\x32\x17.xrcomm.ApiModeCounters\x12#\n\x02iq\x18\x02 \x01(\x0b\x32\x17.xrcomm.ApiModeCounters\x12*\n\tlog_block\x18\x03 \x01(\x0b\x32\x17.xrcomm.ApiModeCounters\x12%\n\x04\x61pps\x18\x04 \x03(\x0b\x32\x17.xrcomm.AppModeCounters2\x86\x05\n\x0fPipelineControl\x12\x30\n\x08GetFlags\x12\r.xrcomm.Empty\x1a\x15.xrcomm.PipelineFlags\x12?\n\x11SetFullPacketMode\x12\x13.xrcomm.BoolRequest\x1a\x15.xrcomm.PipelineFlags\x12\x38\n\nSetLogging\x12\x13.xrcomm.BoolRequest\x1a\x15.xrcomm.PipelineFlags\x12\x37\n\tSetIpMode\x12\x13.xrcomm.BoolRequest\x1a\x15.xrcomm.PipelineFlags\x12\x41\n\x0eSetReadCapture\x12\x1a.xrcomm.ReadCaptureRequest\x1a\x13.xrcomm.StatusReply\x12\x42\n\x12SetReadCaptureRate\x12\x17.xrcomm.ReadRateRequest\x1a\x13.xrcomm.StatusReply\x12.\n\x08Shutdown\x12\r.xrcomm.Empty\x1a\x13.xrcomm.StatusReply\x12\x30\n\x08GetStats\x12\r.xrcomm.Empty\x1a\x15.xrcomm.CombinedStats\x12\x30\n\x0cGetModeStats\x12\r.xrcomm.Empty\x1a\x11.xrcomm.ModeStats\x12:\n\x10ListSecondaryIPs\x12\r.xrcomm.Empty\x1a\x17.xrcomm.SecondaryIPList\x12\x36\n\x0bWatchStatus\x12\r.xrcomm.Empty\x1a\x16.xrcomm.PipelineStatus0\x01\x42\x19Z\x17xrcomm/pipeline_controlb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -37,31 +37,37 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_BOOLREQUEST']._serialized_start=43
   _globals['_BOOLREQUEST']._serialized_end=71
   _globals['_PIPELINEFLAGS']._serialized_start=73
-  _globals['_PIPELINEFLAGS']._serialized_end=186
-  _globals['_STATUSREPLY']._serialized_start=188
-  _globals['_STATUSREPLY']._serialized_end=228
-  _globals['_PIPELINECOUNTERS']._serialized_start=231
-  _globals['_PIPELINECOUNTERS']._serialized_end=398
-  _globals['_DSPSTATS']._serialized_start=401
-  _globals['_DSPSTATS']._serialized_end=659
-  _globals['_SPECTRUMIPSTATS']._serialized_start=662
-  _globals['_SPECTRUMIPSTATS']._serialized_end=885
-  _globals['_COMBINEDSTATS']._serialized_start=888
-  _globals['_COMBINEDSTATS']._serialized_end=1076
-  _globals['_PLATFORMTELEMETRY']._serialized_start=1079
-  _globals['_PLATFORMTELEMETRY']._serialized_end=1228
-  _globals['_SECONDARYIPENTRY']._serialized_start=1231
-  _globals['_SECONDARYIPENTRY']._serialized_end=1368
-  _globals['_SECONDARYIPLIST']._serialized_start=1370
-  _globals['_SECONDARYIPLIST']._serialized_end=1430
-  _globals['_PIPELINESTATUS']._serialized_start=1433
-  _globals['_PIPELINESTATUS']._serialized_end=1561
-  _globals['_APIMODECOUNTERS']._serialized_start=1563
-  _globals['_APIMODECOUNTERS']._serialized_end=1640
-  _globals['_APPMODECOUNTERS']._serialized_start=1642
-  _globals['_APPMODECOUNTERS']._serialized_end=1769
-  _globals['_MODESTATS']._serialized_start=1772
-  _globals['_MODESTATS']._serialized_end=1949
-  _globals['_PIPELINECONTROL']._serialized_start=1952
-  _globals['_PIPELINECONTROL']._serialized_end=2456
+  _globals['_PIPELINEFLAGS']._serialized_end=190
+  _globals['_STATUSREPLY']._serialized_start=192
+  _globals['_STATUSREPLY']._serialized_end=232
+  _globals['_READCAPTUREREQUEST']._serialized_start=234
+  _globals['_READCAPTUREREQUEST']._serialized_end=301
+  _globals['_READRATEREQUEST']._serialized_start=303
+  _globals['_READRATEREQUEST']._serialized_end=344
+  _globals['_READBACKSTATUS']._serialized_start=347
+  _globals['_READBACKSTATUS']._serialized_end=538
+  _globals['_PIPELINECOUNTERS']._serialized_start=541
+  _globals['_PIPELINECOUNTERS']._serialized_end=708
+  _globals['_DSPSTATS']._serialized_start=711
+  _globals['_DSPSTATS']._serialized_end=969
+  _globals['_SPECTRUMIPSTATS']._serialized_start=972
+  _globals['_SPECTRUMIPSTATS']._serialized_end=1195
+  _globals['_COMBINEDSTATS']._serialized_start=1198
+  _globals['_COMBINEDSTATS']._serialized_end=1386
+  _globals['_PLATFORMTELEMETRY']._serialized_start=1389
+  _globals['_PLATFORMTELEMETRY']._serialized_end=1654
+  _globals['_SECONDARYIPENTRY']._serialized_start=1657
+  _globals['_SECONDARYIPENTRY']._serialized_end=1794
+  _globals['_SECONDARYIPLIST']._serialized_start=1796
+  _globals['_SECONDARYIPLIST']._serialized_end=1856
+  _globals['_PIPELINESTATUS']._serialized_start=1859
+  _globals['_PIPELINESTATUS']._serialized_end=2029
+  _globals['_APIMODECOUNTERS']._serialized_start=2031
+  _globals['_APIMODECOUNTERS']._serialized_end=2108
+  _globals['_APPMODECOUNTERS']._serialized_start=2110
+  _globals['_APPMODECOUNTERS']._serialized_end=2237
+  _globals['_MODESTATS']._serialized_start=2240
+  _globals['_MODESTATS']._serialized_end=2417
+  _globals['_PIPELINECONTROL']._serialized_start=2420
+  _globals['_PIPELINECONTROL']._serialized_end=3066
 # @@protoc_insertion_point(module_scope)

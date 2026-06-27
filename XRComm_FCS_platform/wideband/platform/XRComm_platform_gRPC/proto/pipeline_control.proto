@@ -12,11 +12,11 @@ service PipelineControl {
 
   // Set individual flags (returns new state; modes are independent — no
   // mutual exclusion, any combination may be enabled simultaneously)
-  rpc SetDspMode      (BoolRequest) returns (PipelineFlags);
+  rpc SetFullPacketMode (BoolRequest) returns (PipelineFlags);
   rpc SetLogging      (BoolRequest) returns (PipelineFlags);
   rpc SetIpMode       (BoolRequest) returns (PipelineFlags);
 
-  // NVMe read-back config (overwrites platform/config/read_config.ini). After a
+  // NVMe read-back config (overwrites the configured read_config.ini). After a
   // gRPC SetLogging(false) stop, the primary auto-reads this many seconds of
   // the latest capture out of NVMe (size = seconds * sample_rate_hz * 4).
   rpc SetReadCapture     (ReadCaptureRequest) returns (StatusReply);
@@ -43,7 +43,7 @@ message Empty {}
 message BoolRequest { bool value = 1; }
 
 message PipelineFlags {
-  bool enable_dsp_mode = 1;
+  bool enable_fullpkt_mode = 1;  // FULL_PACKET delivery to applications
   bool enable_logging  = 2;
   bool enable_ip_mode  = 3;
   bool execute_rt_loop = 4;

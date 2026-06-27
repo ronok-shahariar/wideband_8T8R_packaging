@@ -1,4 +1,4 @@
-#ifndef XRCOMM_CONFIG_H
+ #ifndef XRCOMM_CONFIG_H
 #define XRCOMM_CONFIG_H
 
 #include "universal.h"

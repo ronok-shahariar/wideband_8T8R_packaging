@@ -85,7 +85,7 @@
 #include <errno.h>
 #include <inttypes.h>
 
-#include "pipeline.h"   /* ComplexInt16, BURST_SIZE, SAMPLES_PER_PACKET, MAC_HEADER_SIZE */
+#include "xrcomm_iq_types.h"   /* DPDK-free: ComplexInt16, BURST_SIZE, SAMPLES_PER_PACKET, MAC_HEADER_SIZE */
 
 #ifdef __cplusplus
 extern "C" {
@@ -152,6 +152,13 @@ typedef struct {
 /* =========================================================================
  * Registry slot — filled by secondary on attach, read by primary
  * ========================================================================= */
+/* Sentinel for a slot that subscribes to every channel of its port
+ * (the wideband init_port path). Defined here so the platform-side dispatcher
+ * and the client header agree on the value. */
+#ifndef XRCOMM_IP_ALL_CHANNELS
+#define XRCOMM_IP_ALL_CHANNELS  0xFFu
+#endif
+
 typedef struct {
     _Alignas(64)
     char                      name[XRCOMM_IP_NAME_LEN];
@@ -205,10 +212,12 @@ typedef struct {
  * ========================================================================= */
 typedef struct {
     _Alignas(64)
-    atomic_bool enable_dsp_mode;   /* DIRECT_MBUF dispatch to DSP secondary */
+    atomic_bool enable_full_packet_mode; /* FULL_PACKET_MODE dispatch to attached secondary */
     atomic_bool enable_logging;    /* NVMe raw I/Q capture                  */
-    atomic_bool enable_ip_mode;    /* ZERO_COPY_IQ + SHARED_BLOCK dispatch  */
+    atomic_bool enable_ip_mode;    /* IQ_MODE per-channel dispatch          */
     atomic_bool execute_rt_loop;   /* master pipeline keep-alive            */
+    /* Append-only: auto-read coordination */
+    atomic_bool request_autoread;  /* set true by SetLogging(off) to trigger read */
 } xrcomm_pipeline_flags_t;
 
 /* =========================================================================
@@ -233,6 +242,67 @@ typedef struct {
 } xrcomm_cfo_out_t;
 
 /* =========================================================================
+ * NVMe auto-read status (published by the platform, read by the gRPC server)
+ *
+ * One per-channel entry plus a global "read in progress" flag. The gRPC
+ * WatchStatus / GetStats surfaces these so a client can see that an automatic
+ * read is running after SetLogging(off).
+ * ========================================================================= */
+#define XRCOMM_READ_NUM_CHANNELS  8u
+
+typedef struct {
+    atomic_bool   active;            /* this channel is being read right now    */
+    atomic_bool   done;              /* this channel finished reading this cycle */
+    uint8_t       channel_id;        /* 0..7                                     */
+    uint8_t       _pad[1];
+    double        start_ts;          /* seconds offset applied (from read_config)*/
+    double        duration;          /* seconds requested                        */
+    uint64_t      sample_rate;       /* Hz used for record conversion            */
+    uint64_t      skip_records;      /* computed start-offset record count       */
+    uint64_t      target_records;    /* computed record count to read            */
+    atomic_uint_least64_t records_read; /* progress                             */
+} xrcomm_read_channel_status_t;
+
+typedef struct {
+    _Alignas(64)
+    atomic_bool   read_in_progress;  /* any channel currently reading            */
+    atomic_bool   read_cycle_done;   /* the whole read cycle completed this run  */
+    uint8_t       _pad[6];
+    atomic_uint_least64_t cycle_start_epoch;  /* when this read cycle started    */
+    double        total_read_seconds;          /* sum of per-channel durations   */
+    xrcomm_read_channel_status_t ch[XRCOMM_READ_NUM_CHANNELS];
+} xrcomm_read_status_t;
+
+/* =========================================================================
+ * Per-channel pipeline telemetry (SHM-visible mirror of PipelineStats)
+ *
+ * Written by the platform driver's sync loop; read by the gRPC server for
+ * GetStats / WatchStatus. One entry per logical channel (8 total).
+ * ========================================================================= */
+#define XRCOMM_TELEM_NUM_CHANNELS  8u
+
+typedef struct {
+    atomic_uint_least64_t samples_received;            /* per-channel IQ samples RX'd        */
+    atomic_uint_least64_t samples_logged;              /* per-channel samples written to NVMe */
+    atomic_uint_least64_t samples_processed_secondary; /* per-channel samples to secondaries  */
+    atomic_uint_least64_t packets_dropped;             /* per-channel drops (RX + ring-full)  */
+} xrcomm_channel_telem_entry_t;
+
+typedef struct {
+    _Alignas(64)
+    atomic_bool valid;     /* platform has written at least once */
+    uint8_t     _pad[7];
+    /* Global pipeline counters (mirror of PipelineStats globals) */
+    atomic_uint_least64_t packets_received;
+    atomic_uint_least64_t packets_processed;
+    atomic_uint_least64_t blocks_processed;
+    atomic_uint_least64_t blocks_logged;
+    atomic_uint_least64_t drops_no_mem;
+    atomic_uint_least64_t drops_ring_full;
+    xrcomm_channel_telem_entry_t ch[XRCOMM_TELEM_NUM_CHANNELS];
+} xrcomm_channel_telemetry_shm_t;
+
+/* =========================================================================
  * Control-plane SHM  /xrcomm_ctrl_shm
  *
  * RULE: append-only.  Never reorder or remove fields.
@@ -253,6 +323,16 @@ typedef struct {
 
     /* Per-slot spectrum stats (each secondary writes its own slot) */
     xrcomm_spectrum_stats_t     spectrum_stats[XRCOMM_IP_MAX_SLOTS];
+
+    /* ---- Append-only: NVMe auto-read status (one entry per channel) ---- */
+    xrcomm_read_status_t        read_status;
+
+    /* ---- Append-only: per-channel pipeline telemetry ----
+     * Published by the platform driver (sync loop, 1 Hz) so the gRPC server
+     * can surface real RX/logged/dropped counts via GetStats / WatchStatus.
+     * The platform's PipelineStats live in its private memory; this block is
+     * the SHM-visible mirror. */
+    xrcomm_channel_telemetry_shm_t  channel_telemetry;
 
 } xrcomm_ctrl_shm_t;
 
@@ -333,9 +413,25 @@ static inline xrcomm_ctrl_shm_t *xrcomm_ctrl_shm_create(void)
     s->ipc_version     = XRCOMM_IPC_VERSION;
     s->pipeline_running = false;
     atomic_store(&s->flags.execute_rt_loop, true);
-    atomic_store(&s->flags.enable_dsp_mode, false);
+    atomic_store(&s->flags.enable_full_packet_mode, false);
     atomic_store(&s->flags.enable_logging,  false);
     atomic_store(&s->flags.enable_ip_mode,  false);
+    atomic_store(&s->flags.request_autoread, false);
+    atomic_store(&s->read_status.read_in_progress, false);
+    atomic_store(&s->read_status.read_cycle_done,  false);
+    for (unsigned _c = 0; _c < XRCOMM_READ_NUM_CHANNELS; _c++) {
+        atomic_store(&s->read_status.ch[_c].active, false);
+        atomic_store(&s->read_status.ch[_c].done,   false);
+        atomic_store(&s->read_status.ch[_c].records_read, 0);
+        s->read_status.ch[_c].channel_id = (uint8_t)_c;
+    }
+    atomic_store(&s->channel_telemetry.valid, false);
+    for (unsigned _c = 0; _c < XRCOMM_TELEM_NUM_CHANNELS; _c++) {
+        atomic_store(&s->channel_telemetry.ch[_c].samples_received, 0);
+        atomic_store(&s->channel_telemetry.ch[_c].samples_logged, 0);
+        atomic_store(&s->channel_telemetry.ch[_c].samples_processed_secondary, 0);
+        atomic_store(&s->channel_telemetry.ch[_c].packets_dropped, 0);
+    }
     printf("[SHM] Ctrl plane: %s (%.1f MB)\n",
            XRCOMM_CTRL_SHM_NAME, sizeof(*s) / (1024.0 * 1024.0));
     return s;
@@ -461,6 +557,27 @@ static inline void ip_shm_dispatch_iq(xrcomm_ctrl_shm_t  *ctrl,
 
     for (unsigned i = 0; i < XRCOMM_IP_MAX_SLOTS; i++) {
         if (!g_iq_rings[i]) continue;
+
+        /* ── Per-channel routing ────────────────────────────────────────────
+         * The dispatcher tags each batch with the LOGICAL channel id (0..7),
+         * which already encodes the port (port 0 -> ch 0..3, port 1 -> ch 4..7).
+         * Push to slot i only if it subscribed to THIS logical channel. A slot
+         * registered with channel==0xFF (XRCOMM_IP_ALL_CHANNELS, the wideband
+         * init_port path) receives every channel of its port.
+         *
+         * Without this filter every batch was fanned to every ring, so each
+         * ring received 8× its intended data and overflowed almost immediately
+         * — the cause of the massive batches_dropped. */
+        const xrcomm_ip_registry_slot_t *reg = &ctrl->ip_registry[i];
+        uint32_t want_ch = reg->channel;
+
+        if (want_ch == XRCOMM_IP_ALL_CHANNELS) {
+            /* wideband: accept every channel of the slot's port */
+            if (reg->hsp_port != (uint32_t)hsp_port) continue;
+        } else {
+            /* 8T8R: exact logical-channel match */
+            if (want_ch != (uint32_t)channel) continue;
+        }
 
         int rc = xrcomm_iq_ring_push(g_iq_rings[i], scratch, n_samples,
                                       n_pkts, first_mac, last_mac, tsc,

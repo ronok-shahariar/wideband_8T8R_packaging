@@ -39,8 +39,8 @@ class PipelineControlStub:
                 request_serializer=pipeline__control__pb2.Empty.SerializeToString,
                 response_deserializer=pipeline__control__pb2.PipelineFlags.FromString,
                 _registered_method=True)
-        self.SetDspMode = channel.unary_unary(
-                '/xrcomm.PipelineControl/SetDspMode',
+        self.SetFullPacketMode = channel.unary_unary(
+                '/xrcomm.PipelineControl/SetFullPacketMode',
                 request_serializer=pipeline__control__pb2.BoolRequest.SerializeToString,
                 response_deserializer=pipeline__control__pb2.PipelineFlags.FromString,
                 _registered_method=True)
@@ -53,6 +53,16 @@ class PipelineControlStub:
                 '/xrcomm.PipelineControl/SetIpMode',
                 request_serializer=pipeline__control__pb2.BoolRequest.SerializeToString,
                 response_deserializer=pipeline__control__pb2.PipelineFlags.FromString,
+                _registered_method=True)
+        self.SetReadCapture = channel.unary_unary(
+                '/xrcomm.PipelineControl/SetReadCapture',
+                request_serializer=pipeline__control__pb2.ReadCaptureRequest.SerializeToString,
+                response_deserializer=pipeline__control__pb2.StatusReply.FromString,
+                _registered_method=True)
+        self.SetReadCaptureRate = channel.unary_unary(
+                '/xrcomm.PipelineControl/SetReadCaptureRate',
+                request_serializer=pipeline__control__pb2.ReadRateRequest.SerializeToString,
+                response_deserializer=pipeline__control__pb2.StatusReply.FromString,
                 _registered_method=True)
         self.Shutdown = channel.unary_unary(
                 '/xrcomm.PipelineControl/Shutdown',
@@ -91,7 +101,7 @@ class PipelineControlServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def SetDspMode(self, request, context):
+    def SetFullPacketMode(self, request, context):
         """Set individual flags (returns new state; modes are independent — no
         mutual exclusion, any combination may be enabled simultaneously)
         """
@@ -106,6 +116,21 @@ class PipelineControlServicer:
         raise NotImplementedError('Method not implemented!')
 
     def SetIpMode(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SetReadCapture(self, request, context):
+        """NVMe read-back config (overwrites the configured read_config.ini). After a
+        gRPC SetLogging(false) stop, the primary auto-reads this many seconds of
+        the latest capture out of NVMe (size = seconds * sample_rate_hz * 4).
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SetReadCaptureRate(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -155,8 +180,8 @@ def add_PipelineControlServicer_to_server(servicer, server):
                     request_deserializer=pipeline__control__pb2.Empty.FromString,
                     response_serializer=pipeline__control__pb2.PipelineFlags.SerializeToString,
             ),
-            'SetDspMode': grpc.unary_unary_rpc_method_handler(
-                    servicer.SetDspMode,
+            'SetFullPacketMode': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetFullPacketMode,
                     request_deserializer=pipeline__control__pb2.BoolRequest.FromString,
                     response_serializer=pipeline__control__pb2.PipelineFlags.SerializeToString,
             ),
@@ -169,6 +194,16 @@ def add_PipelineControlServicer_to_server(servicer, server):
                     servicer.SetIpMode,
                     request_deserializer=pipeline__control__pb2.BoolRequest.FromString,
                     response_serializer=pipeline__control__pb2.PipelineFlags.SerializeToString,
+            ),
+            'SetReadCapture': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetReadCapture,
+                    request_deserializer=pipeline__control__pb2.ReadCaptureRequest.FromString,
+                    response_serializer=pipeline__control__pb2.StatusReply.SerializeToString,
+            ),
+            'SetReadCaptureRate': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetReadCaptureRate,
+                    request_deserializer=pipeline__control__pb2.ReadRateRequest.FromString,
+                    response_serializer=pipeline__control__pb2.StatusReply.SerializeToString,
             ),
             'Shutdown': grpc.unary_unary_rpc_method_handler(
                     servicer.Shutdown,
@@ -234,7 +269,7 @@ class PipelineControl:
             _registered_method=True)
 
     @staticmethod
-    def SetDspMode(request,
+    def SetFullPacketMode(request,
             target,
             options=(),
             channel_credentials=None,
@@ -247,7 +282,7 @@ class PipelineControl:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/xrcomm.PipelineControl/SetDspMode',
+            '/xrcomm.PipelineControl/SetFullPacketMode',
             pipeline__control__pb2.BoolRequest.SerializeToString,
             pipeline__control__pb2.PipelineFlags.FromString,
             options,
@@ -304,6 +339,60 @@ class PipelineControl:
             '/xrcomm.PipelineControl/SetIpMode',
             pipeline__control__pb2.BoolRequest.SerializeToString,
             pipeline__control__pb2.PipelineFlags.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SetReadCapture(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/xrcomm.PipelineControl/SetReadCapture',
+            pipeline__control__pb2.ReadCaptureRequest.SerializeToString,
+            pipeline__control__pb2.StatusReply.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SetReadCaptureRate(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/xrcomm.PipelineControl/SetReadCaptureRate',
+            pipeline__control__pb2.ReadRateRequest.SerializeToString,
+            pipeline__control__pb2.StatusReply.FromString,
             options,
             channel_credentials,
             insecure,

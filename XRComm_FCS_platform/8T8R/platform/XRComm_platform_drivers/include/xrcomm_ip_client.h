@@ -64,7 +64,9 @@ typedef struct {
     uint32_t           channel;     /* channel (0xFF = all, i.e. per-port) */
 } xrcomm_ip_client_t;
 
+#ifndef XRCOMM_IP_ALL_CHANNELS
 #define XRCOMM_IP_ALL_CHANNELS  0xFFu   /* used by init_port (wideband)   */
+#endif
 
 /* ── Internal: common registration logic ───────────────────────────────── */
 static inline int _xrcomm_ip_client_register(xrcomm_ip_client_t *c,
@@ -180,9 +182,9 @@ static inline bool xrcomm_ip_client_ip_mode_on(const xrcomm_ip_client_t *c)
 {
     return c->ctrl && atomic_load(&c->ctrl->flags.enable_ip_mode);
 }
-static inline bool xrcomm_ip_client_dsp_mode_on(const xrcomm_ip_client_t *c)
+static inline bool xrcomm_ip_client_full_packet_mode_on(const xrcomm_ip_client_t *c)
 {
-    return c->ctrl && atomic_load(&c->ctrl->flags.enable_dsp_mode);
+    return c->ctrl && atomic_load(&c->ctrl->flags.enable_full_packet_mode);
 }
 
 /* ── Data access ────────────────────────────────────────────────────────── */

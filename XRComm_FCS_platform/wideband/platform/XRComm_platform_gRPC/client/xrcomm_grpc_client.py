@@ -14,7 +14,7 @@
 #
 # Examples:
 #   ./xrcomm_grpc_client.py --host 192.168.1.10:50051 get-flags
-#   ./xrcomm_grpc_client.py --host 192.168.1.10:50051 set-dsp on
+#   ./xrcomm_grpc_client.py --host 192.168.1.10:50051 set-fullpkt on
 #   ./xrcomm_grpc_client.py --host 192.168.1.10:50051 get-stats
 #   ./xrcomm_grpc_client.py --host 192.168.1.10:50051 watch-status
 #   ./xrcomm_grpc_client.py --host 192.168.1.10:50051 shutdown
@@ -44,7 +44,7 @@ def _on(val: str) -> bool:
 
 def _print_flags(f):
     print(
-        f"flags: dsp={'ON' if f.enable_dsp_mode else 'off'}  "
+        f"flags: fullpkt={'ON' if f.enable_fullpkt_mode else 'off'}  "
         f"ip={'ON' if f.enable_ip_mode else 'off'}  "
         f"logging={'ON' if f.enable_logging else 'off'}  "
         f"rt_loop={'ON' if f.execute_rt_loop else 'off'}"
@@ -58,7 +58,17 @@ def _print_stats(cs):
     print(f"  samples_received             = {t.samples_received}")
     print(f"  samples_logged               = {t.samples_logged}")
     print(f"  samples_processed_secondary  = {t.samples_processed_secondary}")
-    print(f"  packets_dropped              = {t.packets_dropped}")
+    print(f"  packets_dropped (total)      = {t.packets_dropped}")
+    print(f"    nic_rx_overflow            = {t.drops_nic_rx_overflow}  "
+          f"(NIC hardware RX-ring overflow)")
+    print(f"    drops_no_mem               = {t.drops_no_mem}  "
+          f"(processing: clone/pool exhaustion)")
+    print(f"    drops_ring_full            = {t.drops_ring_full}  "
+          f"(RX/processing/logging ring full)")
+    print(f"    drops_dsp                  = {t.drops_dsp}  "
+          f"(FULL_PACKET dispatch ring full)")
+    print(f"    drops_app                  = {t.drops_app}  "
+          f"(application ring full)")
     d = cs.dsp
     print("dsp:")
     print(f"  ready={d.dsp_ready} epochs_proc={d.epochs_processed} "
@@ -78,7 +88,7 @@ def cmd_get_flags(stub, _):
 
 def cmd_set(stub, args):
     req = pb.BoolRequest(value=_on(args.value))
-    rpc = {"set-dsp": stub.SetDspMode,
+    rpc = {"set-fullpkt": stub.SetFullPacketMode,
            "set-ip": stub.SetIpMode,
            "set-logging": stub.SetLogging}[args.command]
     _print_flags(rpc(req))
@@ -173,7 +183,7 @@ def cmd_shutdown(stub, _):
 
 COMMANDS = {
     "get-flags": cmd_get_flags,
-    "set-dsp": cmd_set,
+    "set-fullpkt": cmd_set,
     "set-ip": cmd_set,
     "set-logging": cmd_set,
     "set-read-capture": cmd_set_read_capture,

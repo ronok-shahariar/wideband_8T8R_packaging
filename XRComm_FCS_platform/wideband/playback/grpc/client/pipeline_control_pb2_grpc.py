@@ -29,7 +29,6 @@ class PipelineControlStub(object):
     """============================================================================
     --- Platform mode / stats RPCs (Sections 8.1 / 8.2) merge in here ---
     rpc GetFlags          (Empty)       returns (PipelineFlags);
-    rpc SetDspMode        (BoolRequest) returns (PipelineFlags);
     rpc SetLogging        (BoolRequest) returns (PipelineFlags);
     rpc SetIpMode         (BoolRequest) returns (PipelineFlags);
     rpc GetStats          (Empty)       returns (CombinedStats);
@@ -152,17 +151,7 @@ class PipelineControlStub(object):
 
 
 class PipelineControlServicer(object):
-    """============================================================================
-    --- Platform mode / stats RPCs (Sections 8.1 / 8.2) merge in here ---
-    rpc GetFlags          (Empty)       returns (PipelineFlags);
-    rpc SetDspMode        (BoolRequest) returns (PipelineFlags);
-    rpc SetLogging        (BoolRequest) returns (PipelineFlags);
-    rpc SetIpMode         (BoolRequest) returns (PipelineFlags);
-    rpc GetStats          (Empty)       returns (CombinedStats);
-    rpc ListSecondaryIPs  (Empty)       returns (SecondaryIPList);
-    rpc WatchStatus       (Empty)       returns (stream PipelineStatus);
-    rpc Shutdown          (Empty)       returns (StatusReply);
-    """
+    """Playback control service implementation."""
 
     def GetPlaybackConfig(self, request, context):
         """--- Playback configuration: snapshot + 16 per-field RPCs (Section 8.3) ---
@@ -409,17 +398,7 @@ def add_PipelineControlServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class PipelineControl(object):
-    """============================================================================
-    --- Platform mode / stats RPCs (Sections 8.1 / 8.2) merge in here ---
-    rpc GetFlags          (Empty)       returns (PipelineFlags);
-    rpc SetDspMode        (BoolRequest) returns (PipelineFlags);
-    rpc SetLogging        (BoolRequest) returns (PipelineFlags);
-    rpc SetIpMode         (BoolRequest) returns (PipelineFlags);
-    rpc GetStats          (Empty)       returns (CombinedStats);
-    rpc ListSecondaryIPs  (Empty)       returns (SecondaryIPList);
-    rpc WatchStatus       (Empty)       returns (stream PipelineStatus);
-    rpc Shutdown          (Empty)       returns (StatusReply);
-    """
+    """Playback control service client."""
 
     @staticmethod
     def GetPlaybackConfig(request,

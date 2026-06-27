@@ -14,7 +14,7 @@
 #define _GNU_SOURCE
 #endif
 
-#include <xrcomm-wideband/xrcomm_ip_client.h>
+#include "xrcomm_ip_client.h"
 
 #include <stdio.h>
 #include <stdint.h>

@@ -6,9 +6,8 @@ syntax = "proto3";
 // and 8.4 (start/stop + steady-state diagnostics).
 //
 // SCOPE: this file is the PLAYBACK control surface only. The platform RPCs
-// (Section 8.1 GetFlags/SetDspMode/SetLogging/SetIpMode/GetStats/
-// ListSecondaryIPs/WatchStatus/Shutdown and Section 8.2 telemetry) belong to
-// the full pipeline_control.proto and are intentionally not included here.
+// belong to the full pipeline_control.proto and are intentionally not included
+// here.
 //
 // 8T8R ADAPTATION NOTE (vs the single-port v4.3 key list in Section 6.2):
 // the 8T8R config.ini has per-channel waveform keys (ch0..ch7_filename) and

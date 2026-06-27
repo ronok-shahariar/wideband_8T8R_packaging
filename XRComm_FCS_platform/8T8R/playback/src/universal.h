@@ -104,7 +104,6 @@ typedef struct {
     DataSourceType      mode;
     double              sample_rate_hz;
     int                 loop_count;
-    int                 trigger_burst_size;   /* placeholder; reported in diagnostics */
     volatile bool       running;
     volatile int64_t    tuning_offset;
     volatile uint64_t   tuning_rate;

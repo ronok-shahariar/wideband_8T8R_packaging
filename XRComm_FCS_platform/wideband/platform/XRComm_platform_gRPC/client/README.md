@@ -19,8 +19,8 @@ python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. \
 ```
 
 This produces `pipeline_control_pb2.py` and `pipeline_control_pb2_grpc.py`
-next to the client. (These generated files are not shipped — regenerate them
-from the `.proto`, which is the interface contract.)
+next to the client. The package includes generated stubs; regenerate them only
+after an intentional `.proto` update.
 
 ## 3. Run
 
@@ -35,12 +35,12 @@ client at the platform host:
 
 | Command | RPC | Purpose |
 |---|---|---|
-| `get-flags` | `GetFlags` | Read current dsp / ip / logging / rt-loop flags |
-| `set-dsp on\|off` | `SetDspMode` | Enable/disable FULL_PACKET (DSP) dispatch |
+| `get-flags` | `GetFlags` | Read current fullpkt / ip / logging / rt-loop flags |
+| `set-fullpkt on\|off` | `SetFullPacketMode` | Enable/disable FULL_PACKET dispatch |
 | `set-ip on\|off` | `SetIpMode` | Enable/disable IQ dispatch to applications |
 | `set-logging on\|off` | `SetLogging` | Enable/disable NVMe (LOG_BLOCK) capture. Turning logging **off** via this command triggers the automatic NVMe read-back (below) if a capture occurred. |
-| `set-read-capture <seconds> [--start-offset <seconds>]` | `SetReadCapture` | Configure the automatic read-back: how many seconds to read, and the offset **from the start of the capture** (not a wall-clock time) at which to begin. Overwrites `platform/config/read_config.ini`. |
-| `set-read-rate <hz>` | `SetReadCaptureRate` | Set the receiver sample rate (Hz) used to size the read-back. Overwrites `platform/config/read_config.ini`. |
+| `set-read-capture <seconds> [--start-offset <seconds>]` | `SetReadCapture` | Configure the automatic read-back: how many seconds to read, and the offset **from the start of the capture** (not a wall-clock time) at which to begin. Updates the configured read config. |
+| `set-read-rate <hz>` | `SetReadCaptureRate` | Set the receiver sample rate (Hz) used to size the read-back. Updates the configured read config. |
 | `get-stats` | `GetStats` | Pipeline + DSP + spectrum + **platform telemetry** |
 | `get-mode-stats` | `GetModeStats` | Per-API-mode + per-application Rx/processed/drops |
 | `list-ips` | `ListSecondaryIPs` | Registered customer applications |
@@ -53,7 +53,7 @@ When a capture is stopped with `set-logging off` (and **only** then — not on
 shutdown or failure, and only if a capture actually happened), the platform
 automatically copies a configurable window of the just-finished capture back
 out of NVMe to host files. Two values control this window, both stored in
-`platform/config/read_config.ini`:
+`wideband/platform/config/read_config.ini`:
 
 | Key | Set by | Meaning |
 |---|---|---|
@@ -74,10 +74,9 @@ fails because of these conditions.
 ```
 
 **Both the control client and the platform driver must resolve
-`platform/config/read_config.ini` to the same file.** By default this is a path
-relative to each process's own working directory; if the platform driver and
-`xrcomm_grpc_ctrl` are started from different directories, export
-`XRCOMM_READ_CONFIG` to the same absolute path in both terminals before
+`wideband/platform/config/read_config.ini` to the same file.** The installer
+sets `XRCOMM_READ_CONFIG` for both platform services. When running the
+binaries manually, set it to the package-specific absolute path before
 starting them:
 ```bash
 export XRCOMM_READ_CONFIG="/absolute/path/to/XRComm_FCS_platform/wideband/platform/config/read_config.ini"
@@ -108,7 +107,7 @@ network interface itself.
 ## Examples
 
 ```bash
-./xrcomm_grpc_client.py --host 192.168.1.10:50051 set-dsp on
+./xrcomm_grpc_client.py --host 192.168.1.10:50051 set-fullpkt on
 ./xrcomm_grpc_client.py --host 192.168.1.10:50051 set-ip on
 ./xrcomm_grpc_client.py --host 192.168.1.10:50051 set-read-rate 800e6
 ./xrcomm_grpc_client.py --host 192.168.1.10:50051 set-read-capture 1.0 --start-offset 0.5
@@ -121,8 +120,9 @@ network interface itself.
 
 ## Mode rules
 
-The three mode flags are independent — DSP, IP, and logging may be enabled in
-any combination and run in parallel. Flag changes take effect within ~1 second.
+The three mode flags are independent — FULL_PACKET, IP, and logging may be
+enabled in any combination and run in parallel. Flag changes take effect
+within ~1 second.
 
 ## Interface version
 

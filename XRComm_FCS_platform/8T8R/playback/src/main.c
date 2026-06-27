@@ -107,7 +107,6 @@ int main(int argc, char **argv) {
            g_gcfg.tuning_rate, g_gcfg.tuning_offset);
 
     g_gcfg.loop_count = cfg.loop_count;
-    g_gcfg.trigger_burst_size = cfg.trigger_burst_size;
 
     /* Per-port destination MAC (validated as a string in config_load; parsed
      * into rte_ether_addr here now that EAL is up). */

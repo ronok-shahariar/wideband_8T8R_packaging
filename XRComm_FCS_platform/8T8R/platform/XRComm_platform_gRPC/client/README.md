@@ -11,14 +11,15 @@ pip install grpcio grpcio-tools
 ## Generate stubs from the proto contract
 
 ```bash
-cd /path/to/XRComm_FCS_platform/8T8R/platform/XRComm_platform_gRPC/client/
+cd XRComm_FCS_platform/8T8R/platform/XRComm_platform_gRPC/client/
 python3 -m grpc_tools.protoc -I../proto \
     --python_out=. --grpc_python_out=. \
     ../proto/pipeline_control.proto
 ```
 
 This produces `pipeline_control_pb2.py` and `pipeline_control_pb2_grpc.py` in the
-current directory. Generated stubs are not shipped — regenerate from the `.proto` file.
+current directory. The package includes generated stubs; regenerate them only after an
+intentional `.proto` update.
 
 ## Run the client
 
@@ -28,17 +29,17 @@ The default endpoint is `127.0.0.1:50051`. Use `--host` and `--port` to override
 # Read current mode flags
 python3 xrcomm_grpc_client.py get-flags
 
-# Enable DSP mode (FULL_PACKET_MODE) — independent, does NOT affect other modes
-python3 xrcomm_grpc_client.py set-dsp on
+# Enable Full-Packet Mode (FULL_PACKET_MODE) — independent, does NOT affect other modes
+python3 xrcomm_grpc_client.py set-fullpacket on
 
-# Enable NVMe logging — independent, can run at same time as DSP and IP
+# Enable NVMe logging — independent, can run at same time as Full-Packet and IP
 python3 xrcomm_grpc_client.py set-logging on
 
 # Enable IP mode (IQ_MODE) — independent
 python3 xrcomm_grpc_client.py set-ip on
 
 # All three modes simultaneously (no mutual exclusion)
-python3 xrcomm_grpc_client.py set-dsp on
+python3 xrcomm_grpc_client.py set-fullpacket on
 python3 xrcomm_grpc_client.py set-logging on
 python3 xrcomm_grpc_client.py set-ip on
 
@@ -60,19 +61,65 @@ python3 xrcomm_grpc_client.py shutdown
 | RPC | Request | Response | Purpose |
 |-----|---------|----------|---------|
 | `GetFlags` | Empty | PipelineFlags | Read current mode flags |
-| `SetDspMode` | BoolRequest | PipelineFlags | Enable/disable DSP (FULL_PACKET_MODE) |
+| `SetFullPacketMode` | BoolRequest | PipelineFlags | Enable/disable Full-Packet Mode (FULL_PACKET_MODE) |
 | `SetLogging` | BoolRequest | PipelineFlags | Enable/disable NVMe IQ capture |
 | `SetIpMode` | BoolRequest | PipelineFlags | Enable/disable IQ dispatch (IQ_MODE) |
-| `GetStats` | Empty | CombinedStats | Pipeline stats + 8T8R per-channel telemetry |
+| `GetStats` | Empty | CombinedStats | Pipeline stats + 8T8R per-channel telemetry + auto-read status |
 | `ListSecondaryIPs` | Empty | SecondaryIPList | Registered secondary IQ applications |
-| `WatchStatus` | Empty | stream PipelineStatus | 1 Hz live status stream |
+| `WatchStatus` | Empty | stream PipelineStatus | 1 Hz live status stream (includes auto-read progress) |
+| `SetReadCapture` | ReadCaptureRequest | ReadConfig | Set per-channel auto-read `start_ts` + `duration` (seconds) |
+| `SetReadCaptureRate` | ReadCaptureRateRequest | ReadConfig | Set per-channel receiver `sample_rate` (Hz) |
+| `GetReadConfig` | Empty | ReadConfig | Read all 8 per-channel auto-read rows |
+| `GetReadStatus` | Empty | ReadStatus | Live auto-read progress per channel |
 | `Shutdown` | Empty | StatusReply | Stop the platform pipeline |
+
+## NVMe Auto-Read
+
+After NVMe logging is turned **off via gRPC** (`set-logging off`), the platform automatically performs **one read pass per session** over every channel that captured data. The read is **not** triggered on shutdown or on failure.
+
+Per-channel read parameters live in `8T8R/platform/config/read_config.ini` (one row per channel: `ch_no`, `start_ts`, `duration`, `sample_rate`). The installer sets `XRCOMM_READ_CONFIG` to this file for both platform services. Set them over gRPC before turning logging off:
+
+```bash
+# Set channel 2 to read 2 seconds of data starting 0.5 s into the event:
+python3 xrcomm_grpc_client.py set-read-capture 2 0.5 2.0
+
+# Set channel 2 receiver sample rate to 1966080000 Hz:
+python3 xrcomm_grpc_client.py set-read-rate 2 1966080000
+
+# View the current per-channel read configuration:
+python3 xrcomm_grpc_client.py get-read-config
+
+# Watch live read progress (or use get-stats / watch-status):
+python3 xrcomm_grpc_client.py get-read-status
+```
+
+**How the read fires:**
+
+```bash
+# 1. Enable logging and capture some triggered data:
+python3 xrcomm_grpc_client.py set-logging on
+#    ... playback sends trigger-marked packets ...
+
+# 2. Turn logging off — this triggers the automatic read:
+python3 xrcomm_grpc_client.py set-logging off
+
+# 3. Watch the read happen (status shows "reading" for ~the read duration):
+python3 xrcomm_grpc_client.py watch-status 10
+```
+
+**Record conversion:** `records = floor(seconds × sample_rate / 131072)`. For example, 1.0 s at 1474560000 Hz = 11250 records = 5625 MB of IQ payload. `start_ts` becomes a whole-record skip; `duration` becomes a whole-record count. Both floor to whole records.
+
+**Edge cases (handled with warnings, never failure):**
+- If `start_ts` is at or beyond the captured event length, the reader logs a warning and reads from the start of the records.
+- If `start_ts + duration` exceeds the event length, the duration is capped to what remains and a warning is logged.
+
+Read output goes to `XRComm_platform_drivers/output_logs/ch<N>/event_<id>_<timestamp>/`.
 
 ## Mode independence
 
 All three modes operate **independently** and may be active simultaneously:
 
-- `enable_dsp_mode` — FULL_PACKET_MODE: raw packet dispatch to DSP secondary
+- `enable_full_packet_mode` — FULL_PACKET_MODE: raw packet dispatch to an attached secondary
 - `enable_logging` — NVMe raw IQ capture (trigger-gated)
 - `enable_ip_mode` — IQ_MODE: per-channel IQ dispatch to registered secondaries
 

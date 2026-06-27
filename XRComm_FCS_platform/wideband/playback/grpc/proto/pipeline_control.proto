@@ -7,9 +7,8 @@
 //    - StartPlayback / StopPlayback
 //    - GetPlaybackDiagnostics / WatchPlaybackDiagnostics (13 Table-D fields)
 //
-//  The platform mode/telemetry RPCs (Sections 8.1 / 8.2 — GetFlags, SetDspMode,
-//  SetLogging, SetIpMode, GetStats, ListSecondaryIPs, WatchStatus, Shutdown,
-//  PlatformTelemetry) are added to the SAME `service PipelineControl`. They are
+//  The platform mode/telemetry RPCs are added to the SAME `service
+//  PipelineControl`. They are
 //  marked below where they merge in but are out of scope of this playback drop.
 //
 //  Generated stubs (*.pb.*, *.grpc.pb.*) are NOT shipped — only this .proto.
@@ -70,7 +69,6 @@ message PlaybackDiagnostics {
 service PipelineControl {
   // --- Platform mode / stats RPCs (Sections 8.1 / 8.2) merge in here ---
   // rpc GetFlags          (Empty)       returns (PipelineFlags);
-  // rpc SetDspMode        (BoolRequest) returns (PipelineFlags);
   // rpc SetLogging        (BoolRequest) returns (PipelineFlags);
   // rpc SetIpMode         (BoolRequest) returns (PipelineFlags);
   // rpc GetStats          (Empty)       returns (CombinedStats);

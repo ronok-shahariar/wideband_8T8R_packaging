@@ -31,62 +31,26 @@
 #include <rte_atomic.h>
 #include <spdk/nvme.h>
 
+/* DPDK-free wire-format primitives shared with the public client API.
+ * Defines: channel geometry, header sizes/offsets, trig helpers, IQ geometry,
+ * BURST_SIZE, and ComplexInt16. pipeline.h adds the DPDK-coupled types on top. */
+#include "xrcomm_iq_types.h"
+
 /* =========================================================================
  * Network / Ports / Channels
  * ========================================================================= */
-#define NUM_PORTS                    2
 #define RX_NUM_QUEUES                1
 #define TOTAL_RX_QUEUES              (NUM_PORTS * RX_NUM_QUEUES)
 
-#define CHANNELS_PER_PORT            4
-#define NUM_CHANNELS                 (NUM_PORTS * CHANNELS_PER_PORT)
-#define LOGICAL_CH(port, c)          ((port) * CHANNELS_PER_PORT + (c))
-
-#define HEADER_MAC_SIZE              14
-#define HEADER_CUSTOM_SIZE           18
-#define HEADER_RF_W0_SIZE            32
-#define HEADER_RF_W1_SIZE            32
-#define HEADER_TOTAL_SIZE            (HEADER_MAC_SIZE + HEADER_CUSTOM_SIZE + \
-                                      HEADER_RF_W0_SIZE + HEADER_RF_W1_SIZE)
-/* Alias expected by framework helpers */
-#define MAC_HEADER_SIZE              HEADER_TOTAL_SIZE
-
-/* =========================================================================
- * Packet Byte Offsets
- * ========================================================================= */
-#define PKT_CNT_BYTE_OFFSET          32
-#define TIMESTAMP_BYTE_OFFSET        64
-#define TRIG_CH3_BYTE_OFFSET         40
-#define TRIG_CH2_BYTE_OFFSET         41
-#define TRIG_CH1_BYTE_OFFSET         42
-#define TRIG_CH0_BYTE_OFFSET         43
-#define PREAMBLE_BYTE_OFFSET         61   /* 0xAAAAAB at [61..63], checked as uint32 at 60 */
+/* Header sizes, byte offsets, trig helpers, and IQ/sample geometry now live in
+ * xrcomm_iq_types.h (included above) so they are shared DPDK-free with the
+ * public client API. Only platform-internal constants remain below. */
 
 /* Control message kinds */
 #define CTRL_MSG_EVENT_OPEN          0
 #define CTRL_MSG_EVENT_CLOSE         1
 #define CLOSE_REASON_TRIG_LOW        0
 #define CLOSE_REASON_SHUTDOWN        1
-
-static inline bool    trig_byte_event (uint8_t tb) { return (tb & 0x01u) != 0; }
-static inline uint8_t trig_byte_sample(uint8_t tb) { return (uint8_t)(tb >> 1); }
-
-/* =========================================================================
- * IQ / block geometry
- *
- * v8T8R wire format: 4 channels interleaved, 32 time-instances per packet.
- * Each 16-byte fabric instance: [ch0 IQ 4B][ch1 IQ 4B][ch2 IQ 4B][ch3 IQ 4B]
- * SAMPLES_PER_PACKET      = 128  (all channels, 32 instances × 4 ch)
- * SAMPLES_PER_CH_PER_PACKET = 32  (per channel, one per fabric instance)
- * ========================================================================= */
-#define SAMPLES_PER_PACKET           128
-#define SAMPLES_PER_CH_PER_PACKET    32
-#define SAMPLE_SIZE                    4
-#define PAYLOAD_SIZE                 (SAMPLES_PER_PACKET * SAMPLE_SIZE)  /* 512 B */
-#define FULL_PACKET_SIZE             (HEADER_TOTAL_SIZE + PAYLOAD_SIZE)  /* 608 B */
-
-#define BLOCK_SIZE_SAMPLES           (128 * 1024)
-#define PACKETS_PER_BLOCK            (BLOCK_SIZE_SAMPLES / SAMPLES_PER_CH_PER_PACKET)
 
 /* =========================================================================
  * SPDK / NVMe tuning
@@ -107,7 +71,7 @@ typedef struct { uint8_t buf[524800]; } LogBlock;
 #define NUM_MBUFS                    8388607
 #define MBUF_CACHE_SIZE              512
 #define RX_RING_SIZE                 4096
-#define BURST_SIZE                   128
+/* BURST_SIZE is defined in xrcomm_iq_types.h (shared, DPDK-free). */
 #define PROC_LOG_RING_PER_CH_SIZE    65536
 #define PROC_LOG_CTRL_RING_SIZE      4096
 #define FREE_RING_SIZE               131072
@@ -123,7 +87,7 @@ typedef struct { uint8_t buf[524800]; } LogBlock;
 /* =========================================================================
  * Public API types
  * ========================================================================= */
-typedef struct { int16_t i; int16_t q; } ComplexInt16;
+/* ComplexInt16 is defined in xrcomm_iq_types.h (shared, DPDK-free). */
 
 /**
  * XRCommHeader — v8T8R on-wire header (96 bytes).
@@ -244,10 +208,9 @@ typedef struct {
 /**
  * PipelineControl — runtime mode flags.
  *
- * Mutual exclusion enforced by console_control.h and sync_flags() in main.c:
- *   enable_logging  ⊥  enable_dsp      (logging and DSP cannot be simultaneous)
- *   enable_logging  ⊥  enable_ip_mode  (logging and IP mode cannot be simultaneous)
- *   enable_dsp      ‖  enable_ip_mode  (DSP and IP may be simultaneous)
+ * All three modes are INDEPENDENT — logging, DSP (FULL_PACKET_MODE), and
+ * IP (IQ_MODE) may be active simultaneously. No mutual exclusion is enforced.
+ * Flags are driven exclusively by gRPC via the control SHM.
  */
 typedef struct {
     volatile bool enable_logging;
